@@ -1,0 +1,150 @@
+import { useState, useEffect } from 'react';
+import { BookOpen, Clock, Search, Calendar, User, GraduationCap } from 'lucide-react';
+import { CourseDetail } from './CourseDetail';
+import { api } from '../../services/api';
+
+interface CoursesProps {
+  selectedCourseId?: number | null;
+  onClearSelection: () => void;
+}
+
+export function Courses({ selectedCourseId, onClearSelection }: CoursesProps) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [academicYear, setAcademicYear] = useState('2025/2026');
+  const [selectedCourse, setSelectedCourse] = useState<any>(null);
+
+  const [enrolledCourses, setEnrolledCourses] = useState<any[]>([]);
+
+  useEffect(() => {
+    api.get<typeof enrolledCourses>('/student/courses')
+      .then(setEnrolledCourses)
+      .catch((error) => console.error('Failed to load courses:', error));
+  }, []);
+
+  // Auto-select course if selectedCourseId is provided
+  useEffect(() => {
+    if (selectedCourseId) {
+      const course = enrolledCourses.find(c => c.id === selectedCourseId);
+      if (course) {
+        setSelectedCourse(course);
+        onClearSelection();
+      }
+    }
+  }, [selectedCourseId, enrolledCourses]);
+
+  const filteredCourses = enrolledCourses.filter((course) =>
+    course.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    course.lecturer.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    course.tutor.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Jika ada kursus yang dipilih, tampilkan detail
+  if (selectedCourse) {
+    return <CourseDetail course={selectedCourse} onBack={() => setSelectedCourse(null)} />;
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col gap-4">
+        <div>
+          <h2 className="text-gray-900 mb-1">Kelas yang Diikuti</h2>
+          <p className="text-gray-500">Kelola dan pantau progres kursus Anda</p>
+        </div>
+        
+        {/* Search and Filter */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:outline-none"
+              placeholder="Cari kursus..."
+            />
+          </div>
+          <select
+            value={academicYear}
+            onChange={(e) => setAcademicYear(e.target.value)}
+            className="px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:outline-none bg-white"
+          >
+            <option value="2025/2026">Tahun Akademik 2025/2026</option>
+            <option value="2024/2025">Tahun Akademik 2024/2025</option>
+            <option value="2023/2024">Tahun Akademik 2023/2024</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Courses Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-5">
+        {filteredCourses.map((course) => (
+          <div
+            key={course.id}
+            className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
+            onClick={() => setSelectedCourse(course)}
+          >
+            <div className={`${course.color} h-24 relative`}>
+              <div className="absolute inset-0 bg-black/10 flex items-center justify-center">
+                <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
+                  <BookOpen className="w-6 h-6 text-white" />
+                </div>
+              </div>
+            </div>
+            
+            <div className="p-5">
+              <h3 className="text-gray-900 mb-4">{course.name}</h3>
+              
+              <div className="space-y-3 mb-4">
+                {/* Dosen */}
+                <div className="flex items-start gap-2.5">
+                  <GraduationCap className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
+                  <div className="min-w-0">
+                    <p className="text-xs text-gray-500">Dosen</p>
+                    <p className="text-sm text-gray-900 truncate">{course.lecturer}</p>
+                  </div>
+                </div>
+                
+                {/* Tutor */}
+                <div className="flex items-start gap-2.5">
+                  <User className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
+                  <div className="min-w-0">
+                    <p className="text-xs text-gray-500">Tutor</p>
+                    <p className="text-sm text-gray-900 truncate">{course.tutor}</p>
+                  </div>
+                </div>
+                
+                {/* Jadwal */}
+                <div className="flex items-start gap-2.5">
+                  <Clock className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
+                  <div className="min-w-0">
+                    <p className="text-xs text-gray-500">Jadwal</p>
+                    <p className="text-sm text-gray-900">
+                      {course.schedule.day}, {course.schedule.startTime} - {course.schedule.endTime}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Attendance */}
+              <div className="pt-4 border-t border-gray-100">
+                <div className="flex items-center justify-between text-xs mb-2">
+                  <span className="text-gray-600">Kehadiran</span>
+                  <span className="text-gray-900">
+                    {course.attendance.present}/{course.attendance.total} sesi ({course.attendance.percentage}%)
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className={`${course.color} h-2 rounded-full transition-all`}
+                    style={{ width: `${course.attendance.percentage}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
