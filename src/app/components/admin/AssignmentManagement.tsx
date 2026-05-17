@@ -78,13 +78,14 @@ export function AssignmentManagement() {
     setShowEditModal(true);
   };
 
-  const handleSaveAssignment = (e: React.FormEvent) => {
+  const handleSaveAssignment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedAssignment) {
-      setAssignments(assignments.map((assignment) => assignment.id === selectedAssignment.id ? { ...assignmentForm, id: selectedAssignment.id } : assignment));
+      const updated = await api.put<any>(`/admin/assignments/${selectedAssignment.id}`, { ...assignmentForm, id: selectedAssignment.id });
+      setAssignments(assignments.map((assignment) => assignment.id === selectedAssignment.id ? updated : assignment));
     } else {
-      const nextId = assignments.length ? Math.max(...assignments.map((assignment) => assignment.id)) + 1 : 1;
-      setAssignments([...assignments, { ...assignmentForm, id: nextId }]);
+      const created = await api.post<any>('/admin/assignments', assignmentForm);
+      setAssignments([...assignments, created]);
     }
     setShowEditModal(false);
     setSelectedAssignment(null);
@@ -95,8 +96,9 @@ export function AssignmentManagement() {
     setShowDeleteModal(true);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!selectedAssignment) return;
+    await api.delete(`/admin/assignments/${selectedAssignment.id}`);
     setAssignments(assignments.filter((assignment) => assignment.id !== selectedAssignment.id));
     setSelectedAssignment(null);
     setShowDeleteModal(false);
@@ -208,12 +210,12 @@ export function AssignmentManagement() {
                 <div className="mt-4">
                   <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
                     <span>Progress Pengumpulan</span>
-                    <span>{Math.round((assignment.submitted / assignment.totalStudents) * 100)}%</span>
+                    <span>{assignment.totalStudents > 0 ? Math.round((assignment.submitted / assignment.totalStudents) * 100) : 0}%</span>
                   </div>
                   <div className="w-full bg-gray-100 rounded-full h-2">
                     <div
                       className="bg-blue-600 h-2 rounded-full transition-all"
-                      style={{ width: `${(assignment.submitted / assignment.totalStudents) * 100}%` }}
+                      style={{ width: `${assignment.totalStudents > 0 ? (assignment.submitted / assignment.totalStudents) * 100 : 0}%` }}
                     />
                   </div>
                 </div>

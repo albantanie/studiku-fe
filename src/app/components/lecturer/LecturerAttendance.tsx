@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { UserCheck, Search, Filter, Calendar, Clock, CheckCircle, XCircle, Download, Eye } from 'lucide-react';
+import { UserCheck, Search, Filter, Calendar, Clock, CheckCircle, XCircle, Eye } from 'lucide-react';
 import { api } from '../../../services/api';
 
 interface Student {
@@ -74,8 +74,13 @@ export function LecturerAttendance() {
   };
 
   const getAttendancePercentage = (session: AttendanceSession) => {
+    if (session.totalStudents <= 0) return '0.0';
     return ((session.present / session.totalStudents) * 100).toFixed(1);
   };
+
+  const totalPresent = attendanceSessions.reduce((sum, s) => sum + s.present, 0);
+  const totalStudents = attendanceSessions.reduce((sum, s) => sum + s.totalStudents, 0);
+  const averageAttendance = totalStudents > 0 ? ((totalPresent / totalStudents) * 100).toFixed(1) : '0.0';
 
   return (
     <div className="space-y-6">
@@ -104,8 +109,7 @@ export function LecturerAttendance() {
             <div>
               <p className="text-sm text-gray-600 mb-1">Rata-rata Hadir</p>
               <p className="text-3xl font-bold text-green-600">
-                {(attendanceSessions.reduce((sum, s) => sum + s.present, 0) / 
-                  attendanceSessions.reduce((sum, s) => sum + s.totalStudents, 0) * 100).toFixed(1)}%
+                {averageAttendance}%
               </p>
             </div>
             <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
@@ -188,12 +192,8 @@ export function LecturerAttendance() {
 
       {/* Attendance Sessions */}
       <div className="bg-white rounded-lg border border-gray-200">
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+        <div className="px-6 py-4 border-b border-gray-200">
           <h2 className="text-gray-900">Riwayat Presensi</h2>
-          <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2">
-            <Download className="w-4 h-4" />
-            Export Excel
-          </button>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -402,16 +402,12 @@ export function LecturerAttendance() {
             </div>
 
             {/* Modal Footer */}
-            <div className="border-t border-gray-200 p-4 flex justify-end gap-3">
+            <div className="border-t border-gray-200 p-4 flex justify-end">
               <button
                 onClick={() => setShowDetailModal(false)}
                 className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 Tutup
-              </button>
-              <button className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2">
-                <Download className="w-4 h-4" />
-                Export Data
               </button>
             </div>
           </div>

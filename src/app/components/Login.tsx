@@ -3,7 +3,7 @@ import { GraduationCap, Mail, Lock, Eye, EyeOff, BookOpen, Award, Users } from '
 import { api } from '../../services/api';
 
 interface LoginProps {
-  onLogin: (email: string, role: 'student' | 'admin' | 'lecturer' | 'assistant') => void;
+  onLogin: (email: string, role: 'student' | 'admin' | 'lecturer' | 'assistant', name: string) => void;
 }
 
 export function Login({ onLogin }: LoginProps) {
@@ -18,11 +18,11 @@ export function Login({ onLogin }: LoginProps) {
 
     try {
       const normalizedEmail = email.trim().toLowerCase();
-      const user = await api.post<{ role: 'student' | 'admin' | 'lecturer' | 'assistant'; email: string }>('/auth/login', {
+      const user = await api.post<{ role: 'student' | 'admin' | 'lecturer' | 'assistant'; email: string; name: string }>('/auth/login', {
         email: normalizedEmail,
         password,
       });
-      onLogin(user.email, user.role);
+      onLogin(user.email, user.role, user.name);
     } catch (error) {
       console.error('Login failed:', error);
       alert('Login gagal. Pastikan backend berjalan dan email demo tersedia.');
@@ -112,12 +112,6 @@ export function Login({ onLogin }: LoginProps) {
                 />
                 <span className="text-sm text-gray-600">Ingat saya</span>
               </label> */}
-              <button
-                type="button"
-                className="text-sm text-blue-600 hover:text-blue-700 transition-colors"
-              >
-                {/* Lupa password? */}
-              </button>
             </div>
 
             {/* Login Button */}

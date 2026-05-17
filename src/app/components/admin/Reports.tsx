@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BarChart3, TrendingUp, Users, BookOpen, Award, Download, Calendar } from 'lucide-react';
+import { BarChart3, TrendingUp, Users, BookOpen, Award, Calendar } from 'lucide-react';
 import { api } from '../../../services/api';
 
 export function Reports() {
@@ -46,15 +46,11 @@ export function Reports() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div>
         <div>
           <h1 className="text-gray-900">Laporan & Analitik</h1>
           <p className="text-gray-600 mt-1">Analisis performa akademik dan statistik sistem</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-          <Download className="w-5 h-5" />
-          <span className="hidden sm:inline">Export Laporan</span>
-        </button>
       </div>
 
       {/* Quick Stats */}

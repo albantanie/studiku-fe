@@ -127,7 +127,7 @@ export function LecturerDashboard() {
             <div>
               <p className="text-sm text-gray-600 mb-1">Rata-rata Nilai</p>
               <p className="text-3xl font-bold text-gray-900">
-                {(courses.reduce((sum, course) => sum + course.averageGrade, 0) / courses.length).toFixed(1)}
+                {courses.length > 0 ? (courses.reduce((sum, course) => sum + course.averageGrade, 0) / courses.length).toFixed(1) : '0.0'}
               </p>
             </div>
             <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">

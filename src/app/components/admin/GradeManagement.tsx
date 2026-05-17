@@ -394,7 +394,7 @@ export function GradeManagement() {
             <div>
               <p className="text-sm text-gray-600 mb-1">Rata-rata Nilai</p>
               <p className="text-3xl font-bold text-gray-900">
-                {(courseGrades.reduce((sum, course) => sum + course.averageGrade, 0) / courseGrades.length).toFixed(1)}
+                {courseGrades.length > 0 ? (courseGrades.reduce((sum, course) => sum + course.averageGrade, 0) / courseGrades.length).toFixed(1) : '0.0'}
               </p>
             </div>
             <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
@@ -408,7 +408,7 @@ export function GradeManagement() {
             <div>
               <p className="text-sm text-gray-600 mb-1">Rata-rata Kelulusan</p>
               <p className="text-3xl font-bold text-gray-900">
-                {(courseGrades.reduce((sum, course) => sum + course.passRate, 0) / courseGrades.length).toFixed(1)}%
+                {courseGrades.length > 0 ? (courseGrades.reduce((sum, course) => sum + course.passRate, 0) / courseGrades.length).toFixed(1) : '0.0'}%
               </p>
             </div>
             <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">

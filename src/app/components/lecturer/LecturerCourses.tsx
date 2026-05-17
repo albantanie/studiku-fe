@@ -82,13 +82,14 @@ export function LecturerCourses() {
     setShowAddModal(true);
   };
 
-  const handleSaveCourse = (e: React.FormEvent) => {
+  const handleSaveCourse = async (e: React.FormEvent) => {
     e.preventDefault();
     if (editingCourse) {
-      setCourses(courses.map((course) => course.id === editingCourse.id ? { ...courseForm, id: editingCourse.id } : course));
+      const updated = await api.put<Course>(`/lecturer/courses/${editingCourse.id}`, { ...courseForm, id: editingCourse.id });
+      setCourses(courses.map((course) => course.id === editingCourse.id ? updated : course));
     } else {
-      const nextId = courses.length ? Math.max(...courses.map((course) => course.id)) + 1 : 1;
-      setCourses([...courses, { ...courseForm, id: nextId }]);
+      const created = await api.post<Course>('/lecturer/courses', courseForm);
+      setCourses([...courses, created]);
     }
     setShowAddModal(false);
     setEditingCourse(null);
@@ -99,8 +100,9 @@ export function LecturerCourses() {
     setShowDeleteModal(true);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!courseToDelete) return;
+    await api.delete(`/lecturer/courses/${courseToDelete.id}`);
     setCourses(courses.filter((course) => course.id !== courseToDelete.id));
     setCourseToDelete(null);
     setShowDeleteModal(false);

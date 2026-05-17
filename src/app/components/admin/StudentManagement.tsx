@@ -204,17 +204,9 @@ export function StudentManagement() {
       </div>
 
       {/* Pagination */}
-      <div className="flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg">
+      <div className="px-4 py-3 bg-white border border-gray-200 rounded-lg">
         <div className="text-sm text-gray-600">
           Menampilkan <span className="text-gray-900">{filteredStudents.length}</span> dari <span className="text-gray-900">{students.length}</span> mahasiswa
-        </div>
-        <div className="flex gap-2">
-          <button className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50">
-            Sebelumnya
-          </button>
-          <button className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-            Selanjutnya
-          </button>
         </div>
       </div>
 

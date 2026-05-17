@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
-import { FileText, Video, Download, Eye, Book, File } from 'lucide-react';
+import { FileText, Video, Eye, Book, File } from 'lucide-react';
 import { api } from '../../services/api';
+import { MaterialModal } from './MaterialModal';
 
 export function Materials() {
   const [selectedCourse, setSelectedCourse] = useState('all');
+  const [selectedMaterial, setSelectedMaterial] = useState<any | null>(null);
 
   const [courses, setCourses] = useState<any[]>([]);
 
@@ -116,18 +118,22 @@ export function Materials() {
               </div>
 
               <div className="flex gap-2">
-                <button className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                <button
+                  onClick={() => setSelectedMaterial(material)}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
                   <Eye className="w-4 h-4" />
                   <span>Lihat</span>
-                </button>
-                <button className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
-                  <Download className="w-4 h-4" />
                 </button>
               </div>
             </div>
           </div>
         ))}
       </div>
+
+      {selectedMaterial && (
+        <MaterialModal material={selectedMaterial} onClose={() => setSelectedMaterial(null)} />
+      )}
     </div>
   );
 }

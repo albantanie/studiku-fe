@@ -295,11 +295,11 @@ export function AttendanceManagement() {
                     <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-blue-600 transition-all duration-300"
-                        style={{ width: `${(course.completedSessions / course.totalSessions) * 100}%` }}
+                        style={{ width: `${course.totalSessions > 0 ? (course.completedSessions / course.totalSessions) * 100 : 0}%` }}
                       />
                     </div>
                     <p className="text-xs text-gray-600 mt-1">
-                      {Math.round((course.completedSessions / course.totalSessions) * 100)}% selesai
+                      {course.totalSessions > 0 ? Math.round((course.completedSessions / course.totalSessions) * 100) : 0}% selesai
                     </p>
                   </div>
                 </div>

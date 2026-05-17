@@ -81,9 +81,8 @@ export function AdminDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Activities */}
         <div className="bg-white rounded-lg p-6 border border-gray-200">
-          <div className="flex items-center justify-between mb-4">
+          <div className="mb-4">
             <h3 className="text-gray-900">Aktivitas Terbaru</h3>
-            <button className="text-sm text-blue-600 hover:text-blue-700">Lihat Semua</button>
           </div>
           <div className="space-y-4">
             {recentActivities.map((activity, index) => (
@@ -106,9 +105,8 @@ export function AdminDashboard() {
 
         {/* Top Courses */}
         <div className="bg-white rounded-lg p-6 border border-gray-200">
-          <div className="flex items-center justify-between mb-4">
+          <div className="mb-4">
             <h3 className="text-gray-900">Kursus Terpopuler</h3>
-            <button className="text-sm text-blue-600 hover:text-blue-700">Lihat Semua</button>
           </div>
           <div className="space-y-4">
             {topCourses.map((course, index) => (

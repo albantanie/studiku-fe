@@ -1,5 +1,6 @@
 import { X, Calendar, Upload, CheckCircle2, AlertCircle, FileText, Paperclip } from 'lucide-react';
 import { useState } from 'react';
+import { api } from '../../services/api';
 
 interface AssignmentModalProps {
   assignment: {
@@ -15,6 +16,7 @@ export function AssignmentModal({ assignment, onClose }: AssignmentModalProps) {
   const [fileName, setFileName] = useState<string>('');
   const [submitMode, setSubmitMode] = useState<'write' | 'upload'>('write'); // Default to write mode
   const [answerText, setAnswerText] = useState<string>('');
+  const [submitted, setSubmitted] = useState(assignment.status === 'submitted');
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -23,7 +25,17 @@ export function AssignmentModal({ assignment, onClose }: AssignmentModalProps) {
     }
   };
 
-  const isSubmitted = assignment.status === 'submitted';
+  const isSubmitted = submitted;
+  const canSubmit = submitMode === 'write' ? !!answerText.trim() : !!fileName;
+
+  const handleSubmitAssignment = async () => {
+    if (!canSubmit) return;
+    await api.put(`/student/assignments/${assignment.id}/submit`, {
+      answer: answerText,
+      fileName,
+    });
+    setSubmitted(true);
+  };
 
   return (
     <div className="fixed inset-0 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onClose}>
@@ -88,9 +100,6 @@ export function AssignmentModal({ assignment, onClose }: AssignmentModalProps) {
                     <p className="text-xs text-green-600">
                       File: Assignment_12345678.pdf • Dikumpulkan pada 14 Jan 2026, 15:30
                     </p>
-                    <button className="mt-3 text-sm text-green-700 hover:text-green-800 underline">
-                      Lihat Submission
-                    </button>
                   </div>
                 </div>
               </div>
@@ -187,9 +196,10 @@ export function AssignmentModal({ assignment, onClose }: AssignmentModalProps) {
 
               {/* Submit Button */}
               <button
-                disabled={submitMode === 'write' ? !answerText.trim() : !fileName}
+                onClick={handleSubmitAssignment}
+                disabled={!canSubmit}
                 className={`w-full mt-4 py-2.5 rounded-lg transition-colors ${
-                  (submitMode === 'write' ? answerText.trim() : fileName)
+                  canSubmit
                     ? 'bg-blue-500 text-white hover:bg-blue-600'
                     : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                 }`}

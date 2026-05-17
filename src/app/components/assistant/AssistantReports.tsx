@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { FileText, Search, Filter, Calendar, Download, Eye, X, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { FileText, Search, Filter, Calendar, Eye, X, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import { api } from '../../../services/api';
 
 interface Report {
@@ -36,6 +36,9 @@ export function AssistantReports() {
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'submissions' | 'summary'>('submissions');
+  const [reviewScore, setReviewScore] = useState('');
+  const [reviewFeedback, setReviewFeedback] = useState('');
+  const [reviewStatus, setReviewStatus] = useState<Report['status']>('Disetujui');
 
   const [reports, setReports] = useState<Report[]>([]);
 
@@ -65,7 +68,27 @@ export function AssistantReports() {
 
   const handleViewDetail = (report: Report) => {
     setSelectedReport(report);
+    setReviewScore(report.score?.toString() || '');
+    setReviewFeedback('');
+    setReviewStatus(report.status === 'Menunggu Review' ? 'Disetujui' : report.status);
     setShowDetailModal(true);
+  };
+
+  const handleSaveReview = async () => {
+    if (!selectedReport || !reviewScore) return;
+    const updated = {
+      ...selectedReport,
+      score: Number(reviewScore),
+      status: reviewStatus,
+    };
+    await api.put(`/assistant/reports/${selectedReport.id}/review`, {
+      score: updated.score,
+      status: updated.status,
+      feedback: reviewFeedback,
+    });
+    setReports(reports.map((report) => report.id === updated.id ? updated : report));
+    setSelectedReport(updated);
+    setShowDetailModal(false);
   };
 
   const getStatusBadge = (status: string) => {
@@ -341,7 +364,7 @@ export function AssistantReports() {
             <div className="space-y-4">
               {reportSummary.map((summary) => (
                 <div key={summary.courseCode} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-all">
-                  <div className="flex items-start justify-between mb-4">
+                  <div className="mb-4">
                     <div>
                       <div className="flex items-center gap-2 mb-1">
                         <span className="inline-flex px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded">
@@ -353,7 +376,6 @@ export function AssistantReports() {
                       </div>
                       <h3 className="text-gray-900 font-semibold">{summary.courseName}</h3>
                     </div>
-                    <button className="text-sm text-blue-600 hover:underline">Lihat Detail</button>
                   </div>
                   <div className="grid grid-cols-4 gap-4">
                     <div className="bg-gray-50 rounded-lg p-3 text-center">
@@ -453,7 +475,7 @@ export function AssistantReports() {
               {/* File Info */}
               <div>
                 <h3 className="text-gray-900 font-semibold mb-3">File Laporan</h3>
-                <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                <div className="p-4 border border-gray-200 rounded-lg">
                   <div className="flex items-center gap-3">
                     <FileText className="w-8 h-8 text-blue-500" />
                     <div>
@@ -461,10 +483,6 @@ export function AssistantReports() {
                       <p className="text-xs text-gray-500">{selectedReport.fileSize}</p>
                     </div>
                   </div>
-                  <button className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2">
-                    <Download className="w-4 h-4" />
-                    Download
-                  </button>
                 </div>
               </div>
 
@@ -480,7 +498,8 @@ export function AssistantReports() {
                       type="number"
                       min="0"
                       max="100"
-                      defaultValue={selectedReport.score}
+                      value={reviewScore}
+                      onChange={(e) => setReviewScore(e.target.value)}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="Masukkan nilai..."
                     />
@@ -491,6 +510,8 @@ export function AssistantReports() {
                     </label>
                     <textarea
                       rows={4}
+                      value={reviewFeedback}
+                      onChange={(e) => setReviewFeedback(e.target.value)}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="Berikan feedback untuk mahasiswa..."
                     />
@@ -499,7 +520,11 @@ export function AssistantReports() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Status Review
                     </label>
-                    <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <select
+                      value={reviewStatus}
+                      onChange={(e) => setReviewStatus(e.target.value as Report['status'])}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
                       <option value="Disetujui">Disetujui</option>
                       <option value="Revisi">Perlu Revisi</option>
                       <option value="Ditolak">Ditolak</option>
@@ -517,7 +542,11 @@ export function AssistantReports() {
               >
                 Batal
               </button>
-              <button className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+              <button
+                onClick={handleSaveReview}
+                disabled={!reviewScore}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 Simpan Review
               </button>
             </div>

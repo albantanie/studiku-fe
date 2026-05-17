@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Award, Search, Filter, BookOpen, TrendingUp, Users, Download, Eye, Edit2, X } from 'lucide-react';
+import { Award, Search, Filter, BookOpen, TrendingUp, Users, Eye, Edit2, X } from 'lucide-react';
 import { api } from '../../../services/api';
 
 interface Student {
@@ -82,13 +82,12 @@ export function LecturerGrades() {
     return 'E';
   };
 
-  const handleSaveStudentGrade = () => {
+  const handleSaveStudentGrade = async () => {
     if (!editingStudent) return;
     const nilaiAkhir = Number(((gradeForm.tugas1 + gradeForm.tugas2 + gradeForm.tugas3 + gradeForm.ujianAkhir) / 4).toFixed(1));
-    setStudentGrades(studentGrades.map((student) => student.id === editingStudent.id
-      ? { ...student, ...gradeForm, nilaiAkhir, grade: calculateLetterGrade(nilaiAkhir) }
-      : student
-    ));
+    const updated = { ...editingStudent, ...gradeForm, nilaiAkhir, grade: calculateLetterGrade(nilaiAkhir) };
+    await api.put(`/lecturer/grades/students/${editingStudent.id}`, updated);
+    setStudentGrades(studentGrades.map((student) => student.id === editingStudent.id ? updated : student));
     setEditingStudent(null);
   };
 
@@ -152,7 +151,7 @@ export function LecturerGrades() {
             <div>
               <p className="text-sm text-gray-600 mb-1">Rata-rata Nilai</p>
               <p className="text-3xl font-bold text-gray-900">
-                {(courseGrades.reduce((sum, course) => sum + course.averageGrade, 0) / courseGrades.length).toFixed(1)}
+                {courseGrades.length ? (courseGrades.reduce((sum, course) => sum + course.averageGrade, 0) / courseGrades.length).toFixed(1) : '0.0'}
               </p>
             </div>
             <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
@@ -166,7 +165,7 @@ export function LecturerGrades() {
             <div>
               <p className="text-sm text-gray-600 mb-1">Nilai Tertinggi</p>
               <p className="text-3xl font-bold text-green-600">
-                {Math.max(...courseGrades.map(c => c.highestGrade))}
+                {courseGrades.length ? Math.max(...courseGrades.map(c => c.highestGrade)) : 0}
               </p>
             </div>
             <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
@@ -359,12 +358,8 @@ export function LecturerGrades() {
               </div>
 
               {/* Student Grades Table */}
-              <div className="flex items-center justify-between mb-4">
+              <div className="mb-4">
                 <h3 className="text-gray-900 font-semibold">Daftar Nilai Mahasiswa</h3>
-                <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2 text-sm">
-                  <Download className="w-4 h-4" />
-                  Export Excel
-                </button>
               </div>
 
               <div className="border border-gray-200 rounded-lg overflow-hidden">

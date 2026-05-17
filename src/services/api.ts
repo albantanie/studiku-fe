@@ -18,6 +18,9 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   const payload = (await response.json()) as ApiResponse<T>;
   if (!response.ok || !payload.success) {
+    if ((response.status === 401 || response.status === 403) && path !== '/auth/login') {
+      window.dispatchEvent(new Event('studiku:auth-expired'));
+    }
     throw new Error(payload.error || `API request failed: ${response.status}`);
   }
   return payload.data as T;

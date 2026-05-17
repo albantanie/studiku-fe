@@ -328,16 +328,8 @@ export function LecturerManagement() {
       </div>
 
       {/* Results Info */}
-      <div className="mt-4 bg-white rounded-lg border border-gray-200 p-4 flex items-center justify-between text-sm text-gray-600">
+      <div className="mt-4 bg-white rounded-lg border border-gray-200 p-4 text-sm text-gray-600">
         <span>Menampilkan {filteredLecturers.length} dari {lecturers.length} dosen</span>
-        <div className="flex items-center gap-2">
-          <button className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
-            Sebelumnya
-          </button>
-          <button className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
-            Selanjutnya
-          </button>
-        </div>
       </div>
 
       {/* Modals */}

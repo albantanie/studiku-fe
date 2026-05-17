@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Dashboard } from './components/Dashboard';
 import { Courses } from './components/Courses';
 import { Assignments } from './components/Assignments';
@@ -21,33 +21,64 @@ import { AssistantDashboard } from './components/assistant/AssistantDashboard';
 import { AssistantPracticals } from './components/assistant/AssistantPracticals';
 import { AssistantAttendance } from './components/assistant/AssistantAttendance';
 import { AssistantReports } from './components/assistant/AssistantReports';
-import { LayoutDashboard, FileText, Award, Menu, X, LogOut, Settings, Bell, BookOpen, GraduationCap, Users, ChevronDown, ChevronRight, UserCog, Calendar, Database } from 'lucide-react';
+import { LayoutDashboard, FileText, Award, Menu, X, LogOut, BookOpen, GraduationCap, Users, ChevronDown, ChevronRight, UserCog, Calendar, Database } from 'lucide-react';
+
+type UserRole = 'student' | 'admin' | 'lecturer' | 'assistant';
+
+type AuthUser = {
+  email: string;
+  role: UserRole;
+  name: string;
+};
+
+const AUTH_STORAGE_KEY = 'studiku.auth.user';
+
+function readStoredAuth(): AuthUser | null {
+  try {
+    const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+    if (!raw) return null;
+    const user = JSON.parse(raw) as AuthUser;
+    if (!user.email || !user.name || !['student', 'admin', 'lecturer', 'assistant'].includes(user.role)) {
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+      return null;
+    }
+    return user;
+  } catch {
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+    return null;
+  }
+}
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userRole, setUserRole] = useState<'student' | 'admin' | 'lecturer' | 'assistant'>('student');
-  const [userEmail, setUserEmail] = useState('');
+  const [authUser, setAuthUser] = useState<AuthUser | null>(() => readStoredAuth());
   const [userMenuExpanded, setUserMenuExpanded] = useState(true);
+
+  const isLoggedIn = !!authUser;
+  const userRole: UserRole = authUser?.role || 'student';
+  const userEmail = authUser?.email || '';
+  const userName = authUser?.name || '';
 
   const handleCourseSelect = (courseId: number) => {
     setSelectedCourseId(courseId);
     setActiveTab('courses');
   };
 
-  const handleLogin = (email: string, role: 'student' | 'admin' | 'lecturer' | 'assistant') => {
-    setIsLoggedIn(true);
-    setUserEmail(email);
-    setUserRole(role);
+  const handleLogin = (email: string, role: UserRole, name: string) => {
+    const user = { email, role, name };
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
+    setAuthUser(user);
+    setActiveTab('dashboard');
+    setSelectedCourseId(null);
   };
 
   const handleLogout = () => {
-    setIsLoggedIn(false);
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+    setAuthUser(null);
     setActiveTab('dashboard');
-    setUserEmail('');
-    setUserRole('student');
+    setSelectedCourseId(null);
   };
 
   const studentMenuItems = [
@@ -92,23 +123,52 @@ export default function App() {
     userRole === 'assistant' ? assistantMenuItems :
     studentMenuItems;
 
+  useEffect(() => {
+    const handleAuthExpired = () => handleLogout();
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === AUTH_STORAGE_KEY) {
+        setAuthUser(readStoredAuth());
+        setActiveTab('dashboard');
+        setSelectedCourseId(null);
+      }
+    };
+
+    window.addEventListener('studiku:auth-expired', handleAuthExpired);
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener('studiku:auth-expired', handleAuthExpired);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    const allowedTabs = new Set([
+      ...menuItems.map((item) => item.id),
+      ...(userRole === 'admin' ? adminUserSubMenu.map((item) => item.id) : []),
+    ]);
+    if (!allowedTabs.has(activeTab)) {
+      setActiveTab('dashboard');
+      setSelectedCourseId(null);
+    }
+  }, [activeTab, isLoggedIn, menuItems, userRole]);
+
   // Show login page if not logged in
   if (!isLoggedIn) {
     return <Login onLogin={handleLogin} />;
   }
 
   const getUserName = () => {
-    if (userRole === 'admin') return 'Administrator';
-    if (userRole === 'lecturer') return 'Prof. Dr. Ahmad Wijaya';
-    if (userRole === 'assistant') return 'Andi Pratama';
-    return 'Budi Santoso';
+    return userName || userEmail;
   };
 
   const getUserInitials = () => {
-    if (userRole === 'admin') return 'AD';
-    if (userRole === 'lecturer') return 'AW';
-    if (userRole === 'assistant') return 'AP';
-    return 'BS';
+    return getUserName()
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase())
+      .join('') || 'US';
   };
 
   const getUserRole = () => {
@@ -255,10 +315,6 @@ export default function App() {
             <div className="mt-8 pt-8 border-t border-gray-200">
               <p className="px-4 text-xs text-gray-400 mb-2">PENGATURAN</p>
               <div className="space-y-1">
-                <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">
-                  <Settings className="w-5 h-5" />
-                  <span>Pengaturan</span>
-                </button>
                 <button 
                   onClick={handleLogout}
                   className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
@@ -300,13 +356,6 @@ export default function App() {
               </div>
 
               <div className="flex items-center gap-4">
-                <button className="relative text-gray-500 hover:text-gray-700">
-                  <Bell className="w-6 h-6" />
-                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white text-xs">
-                    3
-                  </span>
-                </button>
-                
                 {/* User Profile */}
                 <div className="flex items-center gap-3">
                   <div className="hidden sm:block text-right">

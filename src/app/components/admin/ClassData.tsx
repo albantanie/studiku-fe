@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Search, Database, Users, BookOpen, Calendar, ChevronRight, Eye, Plus, Upload, Edit2, Trash2, X } from 'lucide-react';
+import { Search, Database, Users, BookOpen, Calendar, ChevronRight, Eye, Plus, Edit2, Trash2, X } from 'lucide-react';
 import { api } from '../../../services/api';
 import { DeleteClassModal } from './DeleteClassModal';
 
@@ -37,7 +37,6 @@ export function ClassData() {
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
   const [filterAcademicYear, setFilterAcademicYear] = useState<string>('all');
   const [showAddModal, setShowAddModal] = useState(false);
-  const [showImportModal, setShowImportModal] = useState(false);
   const [editingClass, setEditingClass] = useState<Class | null>(null);
   const [classToDelete, setClassToDelete] = useState<Class | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -78,6 +77,7 @@ export function ClassData() {
   });
 
   const getCapacityColor = (current: number, max: number) => {
+    if (max <= 0) return 'text-green-600';
     const percentage = (current / max) * 100;
     if (percentage >= 90) return 'text-red-600';
     if (percentage >= 70) return 'text-yellow-600';
@@ -258,13 +258,6 @@ export function ClassData() {
           <p className="text-gray-600 mt-1">Kelola informasi kelas dan daftar mahasiswa</p>
         </div>
         <div className="flex gap-3">
-          <button
-            onClick={() => setShowImportModal(true)}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-white text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
-          >
-            <Upload className="w-5 h-5" />
-            <span>Import Data</span>
-          </button>
           <button
             onClick={handleAddClass}
             className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -557,68 +550,6 @@ export function ClassData() {
         </div>
       )}
 
-      {/* Import Data Modal */}
-      {showImportModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
-            <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-              <h2 className="text-xl text-gray-900 font-semibold">Import Data Kelas</h2>
-              <button
-                onClick={() => setShowImportModal(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-4">
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-sm text-gray-600 mb-2">
-                  Drag & drop file Excel atau klik untuk browse
-                </p>
-                <input
-                  type="file"
-                  accept=".xlsx,.xls,.csv"
-                  className="hidden"
-                  id="file-upload"
-                />
-                <label
-                  htmlFor="file-upload"
-                  className="inline-block px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 cursor-pointer transition-colors"
-                >
-                  Pilih File
-                </label>
-              </div>
-
-              <div className="bg-blue-50 rounded-lg p-4">
-                <p className="text-sm text-gray-700 mb-2">
-                  <span className="font-medium">Format file:</span>
-                </p>
-                <ul className="text-sm text-gray-600 space-y-1 list-disc list-inside">
-                  <li>File Excel (.xlsx, .xls) atau CSV</li>
-                  <li>Kolom: Nama Kelas, Kode, Asisten, Jadwal, Ruangan, Kapasitas</li>
-                  <li>Maksimal 100 baris data</li>
-                </ul>
-              </div>
-
-              <div className="flex justify-end gap-3">
-                <button
-                  onClick={() => setShowImportModal(false)}
-                  className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Batal
-                </button>
-                <button
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Import
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       <DeleteClassModal
         isOpen={showDeleteModal}

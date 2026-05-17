@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Search, Plus, Edit2, Trash2, Mail, Phone, BookOpen, Filter, Clock, Upload, Pencil, Key } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, Mail, Phone, BookOpen, Filter, Clock, Pencil, Key } from 'lucide-react';
 import { AddEditLabAssistantModal } from './AddEditLabAssistantModal';
 import { DeleteLabAssistantModal } from './DeleteLabAssistantModal';
 import { PasswordManagementModal } from './PasswordManagementModal';
@@ -119,10 +119,6 @@ export function LabAssistantManagement() {
       <div className="flex items-center justify-between">
         <h3 className="text-gray-900">Data Asisten Laboratorium</h3>
         <div className="flex items-center gap-2">
-          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
-            <Upload className="w-5 h-5" />
-            <span className="hidden sm:inline">Import Data</span>
-          </button>
           <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors" onClick={handleAddAssistant}>
             <Plus className="w-5 h-5" />
             <span className="hidden sm:inline">Tambah Asisten</span>
@@ -226,17 +222,9 @@ export function LabAssistantManagement() {
       </div>
 
       {/* Pagination */}
-      <div className="flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg">
+      <div className="px-4 py-3 bg-white border border-gray-200 rounded-lg">
         <div className="text-sm text-gray-600">
           Menampilkan <span className="text-gray-900">{filteredAssistants.length}</span> dari <span className="text-gray-900">{assistants.length}</span> asisten
-        </div>
-        <div className="flex gap-2">
-          <button className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50">
-            Sebelumnya
-          </button>
-          <button className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-            Selanjutnya
-          </button>
         </div>
       </div>
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BookOpen, Search, Clock, GraduationCap, Users, ArrowLeft, Calendar, FileText, Upload, Plus, CheckCircle, XCircle, AlertCircle, AlertTriangle, Download, Trash2, X, Eye, Edit } from 'lucide-react';
+import { BookOpen, Search, Clock, GraduationCap, Users, ArrowLeft, Calendar, FileText, CheckCircle, XCircle, AlertCircle, AlertTriangle, Trash2, X, Eye, Edit } from 'lucide-react';
 import { api } from '../../../services/api';
 
 interface Course {
@@ -78,8 +78,6 @@ export function AssistantPracticals() {
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [activeTab, setActiveTab] = useState<'sesi' | 'tugas'>('sesi');
-  const [showAddAssignmentModal, setShowAddAssignmentModal] = useState(false);
-  const [showUploadMaterialModal, setShowUploadMaterialModal] = useState(false);
   const [showSubmissionsModal, setShowSubmissionsModal] = useState(false);
   const [showGradingModal, setShowGradingModal] = useState(false);
   const [showAssistantAttendanceModal, setShowAssistantAttendanceModal] = useState(false);
@@ -90,6 +88,8 @@ export function AssistantPracticals() {
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [assistantAttendanceStatus, setAssistantAttendanceStatus] = useState<'Hadir' | 'Tidak Hadir' | ''>('Hadir');
   const [assistantAttendanceTime, setAssistantAttendanceTime] = useState('08:00');
+  const [gradingScore, setGradingScore] = useState('');
+  const [gradingFeedback, setGradingFeedback] = useState('');
 
   // Kursus yang diajar oleh asisten lab
   const [courses, setCourses] = useState<Course[]>([]);
@@ -107,8 +107,9 @@ export function AssistantPracticals() {
     setShowDeleteMaterialModal(true);
   };
 
-  const handleConfirmDeleteMaterial = () => {
+  const handleConfirmDeleteMaterial = async () => {
     if (!materialToDelete) return;
+    await api.delete(`/assistant/materials/${materialToDelete.id}`);
     setMaterials(materials.filter((material) => material.id !== materialToDelete.id));
     setMaterialToDelete(null);
     setShowDeleteMaterialModal(false);
@@ -165,7 +166,26 @@ export function AssistantPracticals() {
 
   const handleGradeSubmission = (submission: Submission) => {
     setSelectedSubmission(submission);
+    setGradingScore(submission.score?.toString() || '');
+    setGradingFeedback(submission.feedback || '');
     setShowGradingModal(true);
+  };
+
+  const handleSaveGrade = async () => {
+    if (!selectedSubmission || !gradingScore) return;
+    const updated = {
+      ...selectedSubmission,
+      score: Number(gradingScore),
+      feedback: gradingFeedback,
+    };
+    await api.put(`/assistant/submissions/${selectedSubmission.id}/grade`, {
+      score: updated.score,
+      status: 'Disetujui',
+      feedback: updated.feedback,
+    });
+    setSubmissions(submissions.map((submission) => submission.id === updated.id ? updated : submission));
+    setSelectedSubmission(null);
+    setShowGradingModal(false);
   };
 
   const handleUpdateAttendance = (recordId: number, status: 'Hadir' | 'Tidak Hadir' | 'Izin') => {
@@ -248,17 +268,10 @@ export function AssistantPracticals() {
           </div>
         </div>
 
-        {/* Upload Materi */}
+        {/* Materi */}
         <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-4">
+          <div className="mb-4">
             <h3 className="text-gray-900 font-semibold">Materi Praktikum</h3>
-            <button 
-              onClick={() => setShowUploadMaterialModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
-            >
-              <Upload className="w-4 h-4" />
-              Upload Materi
-            </button>
           </div>
           {materials.length > 0 ? (
             <div className="space-y-2">
@@ -272,9 +285,6 @@ export function AssistantPracticals() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-                      <Download className="w-4 h-4" />
-                    </button>
                     <button
                       onClick={() => handleDeleteMaterial(material)}
                       className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -295,15 +305,8 @@ export function AssistantPracticals() {
 
         {/* Berikan Tugas */}
         <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-4">
+          <div className="mb-4">
             <h3 className="text-gray-900 font-semibold">Tugas untuk Sesi Ini</h3>
-            <button 
-              onClick={() => setShowAddAssignmentModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm"
-            >
-              <Plus className="w-4 h-4" />
-              Buat Tugas Baru
-            </button>
           </div>
           {assignments.filter(a => a.sessionNumber === selectedSession.sessionNumber).length > 0 ? (
             <div className="space-y-3">
@@ -457,61 +460,6 @@ export function AssistantPracticals() {
           </div>
         </div>
 
-        {/* Upload Material Modal */}
-        {showUploadMaterialModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md">
-            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full">
-              <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-                <h3 className="text-gray-900 font-semibold">Upload Materi Praktikum</h3>
-                <button
-                  onClick={() => setShowUploadMaterialModal(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="p-6 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Judul Materi</label>
-                  <input
-                    type="text"
-                    className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:outline-none"
-                    placeholder="Masukkan judul materi..."
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">File Materi</label>
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-500 transition-colors cursor-pointer">
-                    <Upload className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                    <p className="text-sm text-gray-600 mb-1">
-                      <span className="text-blue-600 font-medium">Klik untuk upload</span> atau drag & drop
-                    </p>
-                    <p className="text-xs text-gray-500">PDF, ZIP, PPTX, DOCX (Max. 50MB)</p>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Deskripsi (Opsional)</label>
-                  <textarea
-                    rows={3}
-                    className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:outline-none"
-                    placeholder="Tambahkan deskripsi materi..."
-                  />
-                </div>
-              </div>
-              <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
-                <button
-                  onClick={() => setShowUploadMaterialModal(false)}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Batal
-                </button>
-                <button className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
-                  Upload Materi
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Submissions Modal */}
         {showSubmissionsModal && (
@@ -568,9 +516,6 @@ export function AssistantPracticals() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-                            <Download className="w-4 h-4" />
-                          </button>
                           <button
                             onClick={() => handleGradeSubmission(submission)}
                             className="px-3 py-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm flex items-center gap-1"
@@ -624,7 +569,8 @@ export function AssistantPracticals() {
                     type="number"
                     min="0"
                     max="100"
-                    defaultValue={selectedSubmission.score || ''}
+                    value={gradingScore}
+                    onChange={(e) => setGradingScore(e.target.value)}
                     className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:outline-none"
                     placeholder="Masukkan nilai..."
                   />
@@ -633,7 +579,8 @@ export function AssistantPracticals() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">Feedback</label>
                   <textarea
                     rows={4}
-                    defaultValue={selectedSubmission.feedback}
+                    value={gradingFeedback}
+                    onChange={(e) => setGradingFeedback(e.target.value)}
                     className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:outline-none"
                     placeholder="Berikan feedback untuk mahasiswa..."
                   />
@@ -649,7 +596,11 @@ export function AssistantPracticals() {
                 >
                   Batal
                 </button>
-                <button className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                <button
+                  onClick={handleSaveGrade}
+                  disabled={!gradingScore}
+                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
                   Simpan Nilai
                 </button>
               </div>
@@ -837,52 +788,6 @@ export function AssistantPracticals() {
           </div>
         )}
 
-        {/* Add Assignment Modal */}
-        {showAddAssignmentModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md">
-            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full">
-              <div className="p-6 border-b border-gray-200">
-                <h3 className="text-gray-900 font-semibold">Buat Tugas Baru</h3>
-              </div>
-              <div className="p-6 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Judul Tugas</label>
-                  <input
-                    type="text"
-                    className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:outline-none"
-                    placeholder="Masukkan judul tugas..."
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Deskripsi</label>
-                  <textarea
-                    rows={4}
-                    className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:outline-none"
-                    placeholder="Masukkan deskripsi tugas..."
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Deadline</label>
-                  <input
-                    type="datetime-local"
-                    className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:outline-none"
-                  />
-                </div>
-              </div>
-              <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
-                <button
-                  onClick={() => setShowAddAssignmentModal(false)}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Batal
-                </button>
-                <button className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
-                  Simpan Tugas
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     );
   }
@@ -1001,15 +906,8 @@ export function AssistantPracticals() {
 
             {activeTab === 'tugas' && (
               <div>
-                <div className="flex items-center justify-between mb-4">
+                <div className="mb-4">
                   <h3 className="text-gray-900 font-semibold">Semua Tugas yang Diberikan</h3>
-                  <button 
-                    onClick={() => setShowAddAssignmentModal(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Buat Tugas
-                  </button>
                 </div>
                 
                 {assignments.length > 0 ? (
@@ -1042,12 +940,9 @@ export function AssistantPracticals() {
                           <div className="w-full bg-gray-200 rounded-full h-2 mr-4">
                             <div
                               className="bg-green-500 h-2 rounded-full transition-all"
-                              style={{ width: `${(assignment.submittedCount / assignment.totalStudents) * 100}%` }}
+                              style={{ width: `${assignment.totalStudents > 0 ? (assignment.submittedCount / assignment.totalStudents) * 100 : 0}%` }}
                             />
                           </div>
-                          <button className="px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors font-medium whitespace-nowrap">
-                            Lihat Detail
-                          </button>
                         </div>
                       </div>
                     ))}
@@ -1056,7 +951,7 @@ export function AssistantPracticals() {
                   <div className="text-center py-12">
                     <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                     <h3 className="text-gray-900 font-semibold mb-2">Belum Ada Tugas</h3>
-                    <p className="text-gray-600">Klik "Buat Tugas" untuk membuat tugas baru</p>
+                    <p className="text-gray-600">Belum ada tugas tersedia</p>
                   </div>
                 )}
               </div>
@@ -1064,63 +959,6 @@ export function AssistantPracticals() {
           </div>
         </div>
 
-        {/* Add Assignment Modal */}
-        {showAddAssignmentModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md">
-            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full">
-              <div className="p-6 border-b border-gray-200">
-                <h3 className="text-gray-900 font-semibold">Buat Tugas Baru</h3>
-              </div>
-              <div className="p-6 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Pilih Sesi</label>
-                  <select className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:outline-none">
-                    <option value="">Pilih sesi...</option>
-                    {sessions.map(session => (
-                      <option key={session.id} value={session.id}>
-                        Sesi {session.sessionNumber} - {session.title}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Judul Tugas</label>
-                  <input
-                    type="text"
-                    className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:outline-none"
-                    placeholder="Masukkan judul tugas..."
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Deskripsi</label>
-                  <textarea
-                    rows={4}
-                    className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:outline-none"
-                    placeholder="Masukkan deskripsi tugas..."
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Deadline</label>
-                  <input
-                    type="datetime-local"
-                    className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:outline-none"
-                  />
-                </div>
-              </div>
-              <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
-                <button
-                  onClick={() => setShowAddAssignmentModal(false)}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Batal
-                </button>
-                <button className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
-                  Simpan Tugas
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     );
   }
