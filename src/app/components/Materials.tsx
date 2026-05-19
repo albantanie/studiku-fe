@@ -5,7 +5,7 @@ import { getMaterialDownloadUrl } from '../../services/fileService';
 
 export function Materials() {
   const [selectedCourse, setSelectedCourse] = useState('all');
-  const [courses, setCourses] = useState<any[]>([{ id: 'all', name: 'Semua Kursus' }]);
+  const [courses, setCourses] = useState<any[]>([]);
   const [materials, setMaterials] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -16,7 +16,7 @@ export function Materials() {
       setError('');
       try {
         const data = await api.get<any>('/student/materials');
-        setCourses(data?.courses || [{ id: 'all', name: 'Semua Kursus' }]);
+        setCourses(data?.courses || []);
         setMaterials(data?.materials || []);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Gagal memuat materi');

@@ -31,13 +31,14 @@ export function AddEditCourseModal({ isOpen, onClose, onSave, course }: AddEditC
   const [dosenList, setDosenList] = useState<string[]>([]);
   const [asistenList, setAsistenList] = useState<string[]>([]);
   const [kelasList, setKelasList] = useState<Array<{ code: string; name: string }>>([]);
+  const [academicYears, setAcademicYears] = useState<string[]>([]);
 
   const [formData, setFormData] = useState<Course>({
     name: '',
     instructor: '',
     assistant: '',
     studyProgram: 'Teknik Informatika',
-    academicYear: '2024/2025',
+    academicYear: '',
     classCode: '',
     status: 'Aktif',
     day: 'Senin',
@@ -65,11 +66,17 @@ export function AddEditCourseModal({ isOpen, onClose, onSave, course }: AddEditC
   }, []);
 
   useEffect(() => {
+    api.get<any[]>('/admin/academic-years')
+      .then((data) => setAcademicYears((data || []).map((x) => x.name).filter(Boolean)))
+      .catch(() => setAcademicYears([]));
+  }, []);
+
+  useEffect(() => {
     if (course) {
       setFormData({
         ...course,
         credits: course.credits || 3,
-        academicYear: course.academicYear || '2024/2025',
+        academicYear: course.academicYear || academicYears[0] || '',
         room: course.room || '',
         startTime: course.startTime || '08:00',
         endTime: course.endTime || '10:00'
@@ -80,7 +87,7 @@ export function AddEditCourseModal({ isOpen, onClose, onSave, course }: AddEditC
         instructor: '',
         assistant: '',
         studyProgram: 'Teknik Informatika',
-        academicYear: '2024/2025',
+        academicYear: academicYears[0] || '',
         classCode: '',
         status: 'Aktif',
         day: 'Senin',
@@ -92,7 +99,7 @@ export function AddEditCourseModal({ isOpen, onClose, onSave, course }: AddEditC
       });
     }
     setErrors({});
-  }, [course, isOpen]);
+  }, [course, isOpen, academicYears]);
 
   if (!isOpen) return null;
 
@@ -144,7 +151,7 @@ export function AddEditCourseModal({ isOpen, onClose, onSave, course }: AddEditC
       instructor: '',
       assistant: '',
       studyProgram: 'Teknik Informatika',
-      academicYear: '2024/2025',
+      academicYear: academicYears[0] || '',
       classCode: '',
       status: 'Aktif',
       day: 'Senin',
@@ -266,10 +273,11 @@ export function AddEditCourseModal({ isOpen, onClose, onSave, course }: AddEditC
                     onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
-                    <option value="2024/2025">2024/2025</option>
-                    <option value="2025/2026">2025/2026</option>
-                    <option value="2026/2027">2026/2027</option>
-                    <option value="2027/2028">2027/2028</option>
+                    {academicYears.length === 0 ? (
+                      <option value="2024/2025">2024/2025</option>
+                    ) : (
+                      academicYears.map((year) => <option key={year} value={year}>{year}</option>)
+                    )}
                   </select>
                 </div>
 

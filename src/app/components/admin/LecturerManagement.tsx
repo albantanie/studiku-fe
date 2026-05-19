@@ -75,8 +75,8 @@ export function LecturerManagement() {
   };
 
   const handleImportData = (data: any[]) => {
-    // Mock import action
-    console.log('Importing data:', data);
+    setLecturers(data || []);
+    setIsImportModalOpen(false);
   };
 
   const handleManagePassword = (lecturer: Lecturer) => {

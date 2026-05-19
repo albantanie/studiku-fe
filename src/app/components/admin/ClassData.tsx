@@ -41,68 +41,8 @@ export function ClassData() {
   const [studentSearchQuery, setStudentSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
-  const [classData, setClassData] = useState<Class[]>([
-    {
-      id: 1,
-      code: 'A1',
-      name: 'Pemrograman Dasar',
-      academicYear: '2024/2025',
-      assistant: 'Ahmad Fauzi',
-      schedule: 'Senin, 08:00 - 10:00',
-      room: 'Lab 301',
-      totalStudents: 35,
-      capacity: 40,
-      students: [1, 2, 3, 4, 5]
-    },
-    {
-      id: 2,
-      code: 'A2',
-      name: 'Struktur Data',
-      academicYear: '2024/2025',
-      assistant: 'Siti Nurhaliza',
-      schedule: 'Selasa, 10:00 - 12:00',
-      room: 'Lab 302',
-      totalStudents: 38,
-      capacity: 40,
-      students: [6, 7]
-    },
-    {
-      id: 3,
-      code: 'B1',
-      name: 'Basis Data',
-      academicYear: '2024/2025',
-      assistant: 'Budi Setiawan',
-      schedule: 'Rabu, 13:00 - 15:00',
-      room: 'Lab 303',
-      totalStudents: 32,
-      capacity: 40,
-      students: []
-    },
-    {
-      id: 4,
-      code: 'B2',
-      name: 'Pemrograman Web',
-      academicYear: '2024/2025',
-      assistant: 'Dewi Kartika',
-      schedule: 'Kamis, 08:00 - 10:00',
-      room: 'Lab 304',
-      totalStudents: 40,
-      capacity: 40,
-      students: []
-    },
-    {
-      id: 5,
-      code: 'C1',
-      name: 'Kecerdasan Buatan',
-      academicYear: '2024/2025',
-      assistant: 'Eko Prasetyo',
-      schedule: 'Jumat, 10:00 - 12:00',
-      room: 'Lab 305',
-      totalStudents: 28,
-      capacity: 35,
-      students: []
-    },
-  ]);
+  const [classData, setClassData] = useState<Class[]>([]);
+  const [allStudents, setAllStudents] = useState<Student[]>([]);
 
   const [formData, setFormData] = useState<ClassFormData>({
     name: '',
@@ -111,19 +51,6 @@ export function ClassData() {
     capacity: '',
     students: []
   });
-
-  const allStudents: Student[] = [
-    { id: 1, nim: '210101001', name: 'Ahmad Fauzi', email: 'ahmad.fauzi@mail.com', status: 'Aktif' },
-    { id: 2, nim: '210101002', name: 'Siti Nurhaliza', email: 'siti.nur@mail.com', status: 'Aktif' },
-    { id: 3, nim: '210101003', name: 'Budi Setiawan', email: 'budi.s@mail.com', status: 'Aktif' },
-    { id: 4, nim: '210101004', name: 'Dewi Kartika', email: 'dewi.k@mail.com', status: 'Aktif' },
-    { id: 5, nim: '210101005', name: 'Eko Prasetyo', email: 'eko.p@mail.com', status: 'Aktif' },
-    { id: 6, nim: '210101006', name: 'Fitri Handayani', email: 'fitri.h@mail.com', status: 'Aktif' },
-    { id: 7, nim: '210101007', name: 'Gunawan Wijaya', email: 'gunawan.w@mail.com', status: 'Aktif' },
-    { id: 8, nim: '210101008', name: 'Hendra Kusuma', email: 'hendra.k@mail.com', status: 'Aktif' },
-    { id: 9, nim: '210101009', name: 'Indah Permata', email: 'indah.p@mail.com', status: 'Aktif' },
-    { id: 10, nim: '210101010', name: 'Joko Widodo', email: 'joko.w@mail.com', status: 'Aktif' },
-  ];
 
   useEffect(() => {
     const load = async () => {
@@ -146,17 +73,13 @@ export function ClassData() {
           capacity: cls.capacity || 0,
           students: cls.students || [],
         })));
-        // overwrite local student list for detail mode by mutating reference variable-like via closure fallback not possible.
-        // keep current static list if endpoint empty.
-        if ((students || []).length > 0) {
-          (allStudents as Student[]).splice(0, allStudents.length, ...(students || []).map((s) => ({
-            id: s.id,
-            nim: s.studentId || s.nim || '-',
-            name: s.name || '-',
-            email: s.email || '-',
-            status: s.status || 'Aktif',
-          })));
-        }
+        setAllStudents((students || []).map((s) => ({
+          id: s.id,
+          nim: s.studentId || s.nim || '-',
+          name: s.name || '-',
+          email: s.email || '-',
+          status: s.status || 'Aktif',
+        })));
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Gagal memuat data kelas');
       } finally {
@@ -176,6 +99,7 @@ export function ClassData() {
     
     return matchesSearch && matchesAcademicYear;
   });
+  const academicYears = Array.from(new Set(classData.map((c) => c.academicYear).filter(Boolean)));
 
   const getCapacityColor = (current: number, max: number) => {
     const percentage = (current / max) * 100;
@@ -208,47 +132,57 @@ export function ClassData() {
     setShowAddModal(true);
   };
 
-  const handleDeleteClass = (id: number) => {
-    if (window.confirm('Apakah Anda yakin ingin menghapus kelas ini?')) {
-      setClassData(classData.filter(cls => cls.id !== id));
-    }
+  const handleDeleteClass = async (id: number) => {
+    if (!window.confirm('Apakah Anda yakin ingin menghapus kelas ini?')) return;
+    await api.delete(`/admin/classes/${id}`);
+    const classes = await api.get<any[]>('/admin/classes');
+    setClassData((classes || []).map((cls) => ({
+      id: cls.id,
+      code: cls.code || '-',
+      name: cls.name || '-',
+      academicYear: cls.academicYear || '-',
+      assistant: cls.assistant || '-',
+      schedule: cls.schedule || '-',
+      room: cls.room || '-',
+      totalStudents: cls.totalStudents || 0,
+      capacity: cls.capacity || 0,
+      students: cls.students || [],
+    })));
   };
 
-  const handleSubmitClass = (e: React.FormEvent) => {
+  const handleSubmitClass = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
+    const payload = {
+      name: formData.name,
+      code: formData.code,
+      academicYear: formData.academicYear,
+      assistant: editingClass?.assistant || '',
+      schedule: editingClass?.schedule || '',
+      room: editingClass?.room || '',
+      totalStudents: formData.students.length,
+      capacity: parseInt(formData.capacity),
+      students: formData.students,
+    };
+
     if (editingClass) {
-      // Update existing class
-      setClassData(classData.map(cls => 
-        cls.id === editingClass.id 
-          ? {
-              ...cls,
-              name: formData.name,
-              code: formData.code,
-              academicYear: formData.academicYear,
-              capacity: parseInt(formData.capacity),
-              students: formData.students,
-              totalStudents: formData.students.length
-            }
-          : cls
-      ));
+      await api.put(`/admin/classes/${editingClass.id}`, payload);
     } else {
-      // Add new class
-      const newClass: Class = {
-        id: Math.max(...classData.map(c => c.id), 0) + 1,
-        name: formData.name,
-        code: formData.code,
-        academicYear: formData.academicYear,
-        assistant: '-',
-        schedule: '-',
-        room: '-',
-        capacity: parseInt(formData.capacity),
-        students: formData.students,
-        totalStudents: formData.students.length
-      };
-      setClassData([...classData, newClass]);
+      await api.post('/admin/classes', payload);
     }
-    
+    const classes = await api.get<any[]>('/admin/classes');
+    setClassData((classes || []).map((cls) => ({
+      id: cls.id,
+      code: cls.code || '-',
+      name: cls.name || '-',
+      academicYear: cls.academicYear || '-',
+      assistant: cls.assistant || '-',
+      schedule: cls.schedule || '-',
+      room: cls.room || '-',
+      totalStudents: cls.totalStudents || 0,
+      capacity: cls.capacity || 0,
+      students: cls.students || [],
+    })));
     setShowAddModal(false);
   };
 
@@ -429,7 +363,9 @@ export function ClassData() {
               className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="all">Semua Tahun Akademik</option>
-              <option value="2024/2025">2024/2025</option>
+              {academicYears.map((year) => (
+                <option key={year} value={year}>{year}</option>
+              ))}
             </select>
           </div>
         </div>
@@ -583,8 +519,9 @@ export function ClassData() {
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">Pilih Tahun Akademik</option>
-                    <option value="2024/2025">2024/2025</option>
-                    <option value="2023/2024">2023/2024</option>
+                    {academicYears.map((year) => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
                   </select>
                 </div>
               </div>

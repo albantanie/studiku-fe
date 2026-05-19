@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Search, Award, BookOpen, Users, Filter, Eye, TrendingUp, TrendingDown } from 'lucide-react';
+import { api } from '../../../services/api';
 
 interface CourseGrade {
   id: number;
@@ -34,139 +35,27 @@ export function GradeManagement() {
   const [filterCourse, setFilterCourse] = useState<string>('all');
   const [filterAcademicYear, setFilterAcademicYear] = useState<string>('all');
   const [studentSearchQuery, setStudentSearchQuery] = useState('');
+  const [courseGrades, setCourseGrades] = useState<CourseGrade[]>([]);
+  const [studentGradesData, setStudentGradesData] = useState<{ [key: number]: StudentGrade[] }>({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const courseGrades: CourseGrade[] = [
-    {
-      id: 1,
-      courseName: 'Pemrograman Dasar',
-      courseCode: 'TIF101',
-      className: 'TIF-A',
-      semester: 'Ganjil',
-      academicYear: '2024/2025',
-      totalStudents: 35,
-      averageGrade: 78.5,
-      highestGrade: 95,
-      lowestGrade: 55,
-      passRate: 94.3
-    },
-    {
-      id: 2,
-      courseName: 'Struktur Data',
-      courseCode: 'TIF102',
-      className: 'TIF-B',
-      semester: 'Ganjil',
-      academicYear: '2024/2025',
-      totalStudents: 38,
-      averageGrade: 82.3,
-      highestGrade: 98,
-      lowestGrade: 62,
-      passRate: 97.4
-    },
-    {
-      id: 3,
-      courseName: 'Basis Data',
-      courseCode: 'TIF201',
-      className: 'TIF-C',
-      semester: 'Genap',
-      academicYear: '2024/2025',
-      totalStudents: 32,
-      averageGrade: 75.8,
-      highestGrade: 92,
-      lowestGrade: 48,
-      passRate: 87.5
-    },
-    {
-      id: 4,
-      courseName: 'Pemrograman Web',
-      courseCode: 'TIF202',
-      className: 'TIF-D',
-      semester: 'Genap',
-      academicYear: '2024/2025',
-      totalStudents: 40,
-      averageGrade: 80.2,
-      highestGrade: 96,
-      lowestGrade: 58,
-      passRate: 92.5
-    },
-    {
-      id: 5,
-      courseName: 'Kecerdasan Buatan',
-      courseCode: 'TIF301',
-      className: 'TIF-E',
-      semester: 'Ganjil',
-      academicYear: '2024/2025',
-      totalStudents: 28,
-      averageGrade: 76.9,
-      highestGrade: 94,
-      lowestGrade: 52,
-      passRate: 89.3
-    },
-  ];
-
-  const studentGradesData: { [key: number]: StudentGrade[] } = {
-    1: [
-      { 
-        id: 1, 
-        nim: '210101001', 
-        name: 'Ahmad Fauzi', 
-        tugas1: 85, 
-        tugas2: 80, 
-        tugas3: 82, 
-        finalExam: 82, 
-        finalGrade: 81.7,
-        letterGrade: 'A',
-        status: 'Lulus'
-      },
-      { 
-        id: 2, 
-        nim: '210101002', 
-        name: 'Siti Nurhaliza', 
-        tugas1: 92, 
-        tugas2: 88, 
-        tugas3: 90, 
-        finalExam: 90, 
-        finalGrade: 90.0,
-        letterGrade: 'A',
-        status: 'Lulus'
-      },
-      { 
-        id: 3, 
-        nim: '210101003', 
-        name: 'Budi Setiawan', 
-        tugas1: 75, 
-        tugas2: 70, 
-        tugas3: 68, 
-        finalExam: 68, 
-        finalGrade: 71.0,
-        letterGrade: 'B',
-        status: 'Lulus'
-      },
-      { 
-        id: 4, 
-        nim: '210101004', 
-        name: 'Dewi Kartika', 
-        tugas1: 58, 
-        tugas2: 52, 
-        tugas3: 55, 
-        finalExam: 55, 
-        finalGrade: 55.0,
-        letterGrade: 'D',
-        status: 'Tidak Lulus'
-      },
-      { 
-        id: 5, 
-        nim: '210101005', 
-        name: 'Eko Prasetyo', 
-        tugas1: 88, 
-        tugas2: 82, 
-        tugas3: 85, 
-        finalExam: 85, 
-        finalGrade: 85.0,
-        letterGrade: 'A',
-        status: 'Lulus'
-      },
-    ],
-  };
+  useEffect(() => {
+    const load = async () => {
+      setIsLoading(true);
+      setError('');
+      try {
+        const payload = await api.get<any>('/admin/grades');
+        setCourseGrades(payload?.courseGrades || []);
+        setStudentGradesData(payload?.studentGradesData || {});
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Gagal memuat data nilai');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    load();
+  }, []);
 
   const filteredCourses = courseGrades.filter(course => {
     const matchesSearch = 
@@ -411,6 +300,8 @@ export function GradeManagement() {
 
   return (
     <div className="space-y-6">
+      {isLoading && <div className="text-sm text-gray-600">Memuat nilai...</div>}
+      {error && <div className="text-sm text-red-600">{error}</div>}
       {/* Header */}
       <div>
         <h1 className="text-gray-900">Nilai</h1>

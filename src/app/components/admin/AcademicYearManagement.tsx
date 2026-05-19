@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Search, Plus, Edit2, Trash2, Calendar, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { AddEditAcademicYearModal } from './AddEditAcademicYearModal';
 import { DeleteAcademicYearModal } from './DeleteAcademicYearModal';
+import { api } from '../../../services/api';
 
 interface AcademicYear {
   id: number;
@@ -20,48 +21,25 @@ export function AcademicYearManagement() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedYear, setSelectedYear] = useState<AcademicYear | null>(null);
   const [yearToDelete, setYearToDelete] = useState<AcademicYear | null>(null);
-  const [academicYears, setAcademicYears] = useState<AcademicYear[]>([
-    {
-      id: 1,
-      name: '2024/2025 Genap',
-      startDate: '2025-01-15',
-      endDate: '2025-06-30',
-      semester: 'Genap',
-      status: 'Aktif',
-      totalCourses: 48,
-      totalStudents: 1234
-    },
-    {
-      id: 2,
-      name: '2024/2025 Ganjil',
-      startDate: '2024-08-15',
-      endDate: '2024-12-31',
-      semester: 'Ganjil',
-      status: 'Selesai',
-      totalCourses: 45,
-      totalStudents: 1189
-    },
-    {
-      id: 3,
-      name: '2025/2026 Ganjil',
-      startDate: '2025-08-15',
-      endDate: '2025-12-31',
-      semester: 'Ganjil',
-      status: 'Mendatang',
-      totalCourses: 0,
-      totalStudents: 0
-    },
-    {
-      id: 4,
-      name: '2023/2024 Genap',
-      startDate: '2024-01-15',
-      endDate: '2024-06-30',
-      semester: 'Genap',
-      status: 'Selesai',
-      totalCourses: 42,
-      totalStudents: 1098
-    },
-  ]);
+  const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const load = async () => {
+      setIsLoading(true);
+      setError('');
+      try {
+        const data = await api.get<AcademicYear[]>('/admin/academic-years');
+        setAcademicYears(data || []);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Gagal memuat tahun akademik');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    load();
+  }, []);
 
   const filteredYears = academicYears.filter(year =>
     year.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -102,35 +80,36 @@ export function AcademicYearManagement() {
     setIsDeleteModalOpen(true);
   };
 
-  const handleSaveYear = (yearData: Omit<AcademicYear, 'id' | 'totalCourses' | 'totalStudents' | 'status'>) => {
+  const handleSaveYear = async (yearData: Omit<AcademicYear, 'id' | 'totalCourses' | 'totalStudents' | 'status'>) => {
     // Calculate status automatically based on dates
     const status = calculateStatus(yearData.startDate, yearData.endDate);
     
     if (selectedYear) {
-      // Edit existing year
-      setAcademicYears(academicYears.map(y =>
-        y.id === selectedYear.id 
-          ? { ...yearData, status, id: selectedYear.id, totalCourses: selectedYear.totalCourses, totalStudents: selectedYear.totalStudents }
-          : y
-      ));
-    } else {
-      // Add new year
-      const newYear: AcademicYear = {
+      await api.put(`/admin/academic-years/${selectedYear.id}`, {
         ...yearData,
         status,
-        id: Math.max(...academicYears.map(y => y.id)) + 1,
+        totalCourses: selectedYear.totalCourses,
+        totalStudents: selectedYear.totalStudents,
+      });
+    } else {
+      await api.post('/admin/academic-years', {
+        ...yearData,
+        status,
         totalCourses: 0,
-        totalStudents: 0
-      };
-      setAcademicYears([newYear, ...academicYears]);
+        totalStudents: 0,
+      });
     }
+    const data = await api.get<AcademicYear[]>('/admin/academic-years');
+    setAcademicYears(data || []);
     setIsAddEditModalOpen(false);
     setSelectedYear(null);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (yearToDelete) {
-      setAcademicYears(academicYears.filter(y => y.id !== yearToDelete.id));
+      await api.delete(`/admin/academic-years/${yearToDelete.id}`);
+      const data = await api.get<AcademicYear[]>('/admin/academic-years');
+      setAcademicYears(data || []);
       setIsDeleteModalOpen(false);
       setYearToDelete(null);
     }
@@ -178,6 +157,8 @@ export function AcademicYearManagement() {
           <span>Tambah Tahun Akademik</span>
         </button>
       </div>
+      {isLoading && <div className="text-sm text-gray-600">Memuat tahun akademik...</div>}
+      {error && <div className="text-sm text-red-600">{error}</div>}
 
       {/* Search Bar */}
       <div className="bg-white rounded-lg p-4 border border-gray-200">

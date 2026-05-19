@@ -75,34 +75,9 @@ export function LabAssistantManagement() {
   };
 
   const handleImportAssistants = async (data: any[]) => {
-    try {
-      await api.post('/admin/lab-assistants/import', { items: data });
-      toast.success('Import tersimpan ke backend.');
-    } catch {
-      toast.warning('Import backend gagal.');
-    }
-
-    const mapped: LabAssistant[] = data.map((item, index) => ({
-      id: Date.now() + index,
-      name: item.name || '-',
-      email: item.email || '-',
-      phone: item.phone || '-',
-      studentId: item.studentId || '-',
-      lab: item.lab || 'Laboratorium Pemrograman',
-      supervisor: item.supervisor || '-',
-      semester: item.semester || 1,
-      gpa: item.gpa || 0,
-      assignedCourses: 0,
-      weeklyHours: 0,
-      status: item.status || 'Aktif',
-      joinDate: new Date().toISOString().split('T')[0],
-      password: item.password || 'default123',
-      defaultPassword: item.password || 'default123',
-      isPasswordChanged: false,
-    }));
-
-    setAssistantsData((prev) => [...mapped, ...prev]);
-    toast.success(`Import data aslab (${mapped.length}) diproses.`);
+    setAssistantsData(data || []);
+    setIsImportModalOpen(false);
+    toast.success('Import data aslab berhasil.');
   };
 
   const handleConfirmDelete = () => {

@@ -10,23 +10,33 @@ interface ImportLecturerModalProps {
 
 export function ImportLecturerModal({ isOpen, onClose, onImport }: ImportLecturerModalProps) {
   const [file, setFile] = useState<File | null>(null);
+  const [previewData, setPreviewData] = useState<any[]>([]);
   const [error, setError] = useState<string>('');
   const [success, setSuccess] = useState<string>('');
 
   if (!isOpen) return null;
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     setError('');
     setSuccess('');
     if (!selectedFile) return;
     const ext = selectedFile.name.split('.').pop()?.toLowerCase();
-    if (ext === 'csv' || ext === 'xlsx' || ext === 'xls') {
-      setFile(selectedFile);
-      setSuccess(`File "${selectedFile.name}" dipilih`);
-    } else {
-      setError('Format file tidak didukung. Gunakan CSV/XLSX/XLS');
+    if (ext !== 'xlsx') {
+      setError('Format file tidak didukung. Gunakan .xlsx');
       setFile(null);
+      return;
+    }
+    setFile(selectedFile);
+    setSuccess(`File "${selectedFile.name}" dipilih`);
+    const fd = new FormData();
+    fd.append('file', selectedFile);
+    try {
+      const res = await api.postFormData<{ preview: any[] }>('/admin/lecturers/import/preview', fd);
+      setPreviewData(res?.preview || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal preview file');
+      setPreviewData([]);
     }
   };
 
@@ -36,16 +46,10 @@ export function ImportLecturerModal({ isOpen, onClose, onImport }: ImportLecture
       return;
     }
     try {
-      const preview = await api.get<any>('/admin/import-lecturer-preview');
-      const row = preview?.[0] || preview;
-      const payload = row ? [{
-        name: row.name,
-        email: row.email,
-        password: 'password',
-        nidn: row.nidn,
-        courses: row.courses || [],
-      }] : [];
-      onImport(payload);
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await api.postFormData<{ lecturers: any[]; imported: number }>('/admin/lecturers/import', fd);
+      onImport(res?.lecturers || []);
       setSuccess(`Import diproses dari "${file.name}"`);
       setTimeout(() => handleClose(), 1200);
     } catch (err) {
@@ -55,16 +59,7 @@ export function ImportLecturerModal({ isOpen, onClose, onImport }: ImportLecture
 
   const handleDownloadTemplate = async () => {
     try {
-      const validTypes = await api.get<string[]>('/admin/import-file-types');
-      const hint = Array.isArray(validTypes) ? validTypes.join('|') : 'csv|xlsx|xls';
-      const csvContent = `Nama,Email,Password,NIDN,Mata Kuliah\nDr. Contoh,contoh@university.ac.id,password123,0123456789,Algoritma;Basis Data\n#valid_types:${hint}`;
-      const blob = new Blob([csvContent], { type: 'text/csv' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'template-import-dosen.csv';
-      a.click();
-      window.URL.revokeObjectURL(url);
+      window.open(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'}/admin/lecturers/import/template`, '_blank');
     } catch {
       setError('Gagal download template');
     }
@@ -72,6 +67,7 @@ export function ImportLecturerModal({ isOpen, onClose, onImport }: ImportLecture
 
   const handleClose = () => {
     setFile(null);
+    setPreviewData([]);
     setError('');
     setSuccess('');
     onClose();
@@ -83,7 +79,7 @@ export function ImportLecturerModal({ isOpen, onClose, onImport }: ImportLecture
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
           <div>
             <h2 className="text-gray-900">Import Data Dosen</h2>
-            <p className="text-sm text-gray-600 mt-1">Upload file CSV/XLSX/XLS</p>
+            <p className="text-sm text-gray-600 mt-1">Upload file Excel (.xlsx)</p>
           </div>
           <button onClick={handleClose} className="text-gray-400 hover:text-gray-600"><X className="w-6 h-6" /></button>
         </div>
@@ -105,11 +101,16 @@ export function ImportLecturerModal({ isOpen, onClose, onImport }: ImportLecture
             <Upload className="w-10 h-10 text-gray-400 mx-auto mb-3" />
             <label className="cursor-pointer">
               <span className="text-blue-600 hover:text-blue-700">Pilih file</span>
-              <input type="file" accept=".csv,.xlsx,.xls" onChange={handleFileChange} className="hidden" />
+              <input type="file" accept=".xlsx" onChange={handleFileChange} className="hidden" />
             </label>
           </div>
 
           {file && <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm text-gray-700">{file.name}</div>}
+          {previewData.length > 0 && (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm text-gray-700">
+              {previewData.length} data siap diimport
+            </div>
+          )}
           {error && <div className="flex gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700"><AlertCircle className="w-5 h-5" />{error}</div>}
           {success && <div className="flex gap-2 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700"><CheckCircle className="w-5 h-5" />{success}</div>}
         </div>

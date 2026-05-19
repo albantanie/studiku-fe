@@ -46,67 +46,44 @@ export function ImportStudentModal({ isOpen, onClose, onImport }: ImportStudentM
   };
 
   const handleFile = (file: File) => {
-    // Check file type
-    api.get<any[]>('/admin/import-file-types')
-      .then((types) => {
-        const valid = (types || []).map((x: any) => x.value || x);
-        const ext = file.name.split('.').pop()?.toLowerCase();
-        if (valid.length > 0 && ext && !valid.includes(ext)) {
-          setErrorMessage('Format file tidak valid. Gunakan format sesuai template.');
-          setImportStatus('error');
-          return;
-        }
-        setFile(file);
-        parseFile(file);
-      })
-      .catch(() => {
-        setFile(file);
-        parseFile(file);
-      });
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    if (ext !== 'xlsx') {
+      setErrorMessage('Format file tidak valid. Hanya file .xlsx yang diperbolehkan.');
+      setImportStatus('error');
+      return;
+    }
+    setFile(file);
+    parseFile(file);
   };
 
-  const parseFile = (file: File) => {
-    const reader = new FileReader();
-    
-    reader.onload = (e) => {
-      try {
-        const text = e.target?.result as string;
-        const lines = text.split('\n').filter(line => line.trim());
-        
-        // Parse CSV
-        const headers = lines[0].split(',').map(h => h.trim());
-        const data = lines.slice(1).map((line, index) => {
-          const values = line.split(',').map(v => v.trim());
-          return {
-            id: index + 1,
-            name: values[0] || '',
-            email: values[1] || '',
-            studentId: values[2] || '',
-            program: values[3] || '',
-            semester: parseInt(values[4]) || 0,
-            gpa: parseFloat(values[5]) || 0,
-            phone: values[6] || '',
-            status: values[7] || 'Aktif'
-          };
-        });
-
-        setPreviewData(data);
-        setImportStatus('preview');
-      } catch (error) {
-        setErrorMessage('Gagal membaca file. Pastikan format file benar.');
-        setImportStatus('error');
-      }
-    };
-
-    reader.readAsText(file);
+  const parseFile = async (file: File) => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const result = await api.postFormData<{ preview: any[]; rows: any[] }>('/admin/students/import/preview', formData);
+      setPreviewData(result?.preview || []);
+      setImportStatus('preview');
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Gagal membaca file. Pastikan format file benar.');
+      setImportStatus('error');
+    }
   };
 
-  const handleImport = () => {
-    onImport(previewData);
-    setImportStatus('success');
-    setTimeout(() => {
-      handleClose();
-    }, 2000);
+  const handleImport = async () => {
+    if (!file) return;
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const result = await api.postFormData<{ imported: number; students: any[] }>('/admin/students/import', formData);
+      onImport(result?.students || []);
+      setImportStatus('success');
+      setTimeout(() => {
+        handleClose();
+      }, 2000);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Import gagal.');
+      setImportStatus('error');
+    }
   };
 
   const handleClose = () => {
@@ -118,17 +95,7 @@ export function ImportStudentModal({ isOpen, onClose, onImport }: ImportStudentM
   };
 
   const downloadTemplate = () => {
-    const template = 'Nama,Email,NIM,Program Studi,Semester,IPK,No Telepon,Status\n' +
-                     'John Doe,john.doe@student.ac.id,TI2021001,Teknik Informatika,6,3.75,081234567890,Aktif\n' +
-                     'Jane Smith,jane.smith@student.ac.id,TI2021002,Teknik Informatika,6,3.82,082345678901,Aktif';
-    
-    const blob = new Blob([template], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'template_mahasiswa.csv';
-    a.click();
-    window.URL.revokeObjectURL(url);
+    window.open(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'}/admin/students/import/template`, '_blank');
   };
 
   return (
@@ -138,7 +105,7 @@ export function ImportStudentModal({ isOpen, onClose, onImport }: ImportStudentM
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
           <div>
             <h2 className="text-gray-900">Import Data Mahasiswa</h2>
-            <p className="text-sm text-gray-600 mt-1">Upload file CSV atau Excel untuk import data mahasiswa</p>
+            <p className="text-sm text-gray-600 mt-1">Upload file Excel (.xlsx) untuk import data mahasiswa</p>
           </div>
           <button
             onClick={handleClose}
@@ -158,7 +125,7 @@ export function ImportStudentModal({ isOpen, onClose, onImport }: ImportStudentM
                   <FileText className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
                   <div className="flex-1">
                     <h3 className="text-sm text-blue-900 mb-1">Butuh template?</h3>
-                    <p className="text-sm text-blue-700 mb-3">Download template CSV untuk memastikan format data Anda sesuai.</p>
+                    <p className="text-sm text-blue-700 mb-3">Download template Excel untuk memastikan format data Anda sesuai.</p>
                     <button
                       onClick={downloadTemplate}
                       className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
@@ -193,12 +160,12 @@ export function ImportStudentModal({ isOpen, onClose, onImport }: ImportStudentM
                   pilih file
                 </button>
                 <p className="text-sm text-gray-500 mt-2">
-                  Format yang didukung: CSV, Excel (.xls, .xlsx)
+                  Format yang didukung: Excel (.xlsx)
                 </p>
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".csv,.xls,.xlsx"
+                  accept=".xlsx"
                   onChange={handleChange}
                   className="hidden"
                 />
@@ -208,14 +175,14 @@ export function ImportStudentModal({ isOpen, onClose, onImport }: ImportStudentM
               <div className="bg-gray-50 rounded-lg p-4">
                 <h3 className="text-sm text-gray-900 mb-3">Format File:</h3>
                 <div className="text-sm text-gray-600 space-y-1">
-                  <p>• <strong>Kolom 1:</strong> Nama</p>
-                  <p>• <strong>Kolom 2:</strong> Email</p>
-                  <p>• <strong>Kolom 3:</strong> NIM</p>
-                  <p>• <strong>Kolom 4:</strong> Program Studi</p>
-                  <p>• <strong>Kolom 5:</strong> Semester (angka)</p>
-                  <p>• <strong>Kolom 6:</strong> IPK (desimal)</p>
-                  <p>• <strong>Kolom 7:</strong> No Telepon</p>
-                  <p>• <strong>Kolom 8:</strong> Status (Aktif/Cuti)</p>
+                  <p>• <strong>nim</strong></p>
+                  <p>• <strong>nama</strong></p>
+                  <p>• <strong>email</strong></p>
+                  <p>• <strong>no_hp</strong></p>
+                  <p>• <strong>jenis_kelamin</strong></p>
+                  <p>• <strong>program_studi</strong></p>
+                  <p>• <strong>angkatan</strong></p>
+                  <p>• <strong>status</strong></p>
                 </div>
               </div>
             </div>
@@ -246,8 +213,7 @@ export function ImportStudentModal({ isOpen, onClose, onImport }: ImportStudentM
                         <th className="px-4 py-3 text-left text-xs text-gray-500 uppercase">Email</th>
                         <th className="px-4 py-3 text-left text-xs text-gray-500 uppercase">NIM</th>
                         <th className="px-4 py-3 text-left text-xs text-gray-500 uppercase">Program</th>
-                        <th className="px-4 py-3 text-left text-xs text-gray-500 uppercase">Sem</th>
-                        <th className="px-4 py-3 text-left text-xs text-gray-500 uppercase">IPK</th>
+                        <th className="px-4 py-3 text-left text-xs text-gray-500 uppercase">Angkatan</th>
                         <th className="px-4 py-3 text-left text-xs text-gray-500 uppercase">Status</th>
                       </tr>
                     </thead>
@@ -258,8 +224,7 @@ export function ImportStudentModal({ isOpen, onClose, onImport }: ImportStudentM
                           <td className="px-4 py-3 text-sm text-gray-900">{student.email}</td>
                           <td className="px-4 py-3 text-sm text-gray-900">{student.studentId}</td>
                           <td className="px-4 py-3 text-sm text-gray-900">{student.program}</td>
-                          <td className="px-4 py-3 text-sm text-gray-900">{student.semester}</td>
-                          <td className="px-4 py-3 text-sm text-gray-900">{student.gpa.toFixed(2)}</td>
+                          <td className="px-4 py-3 text-sm text-gray-900">{student.angkatan}</td>
                           <td className="px-4 py-3">
                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs ${
                               student.status === 'Aktif'

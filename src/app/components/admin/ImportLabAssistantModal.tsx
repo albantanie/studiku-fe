@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { X, Upload, FileText, Download, AlertCircle, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { api } from '../../../services/api';
 
 interface ImportLabAssistantModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onImport: (data: any[]) => Promise<void>;
+  onImport: (data: any[]) => Promise<void> | void;
 }
 
 export function ImportLabAssistantModal({ isOpen, onClose, onImport }: ImportLabAssistantModalProps) {
@@ -13,30 +14,9 @@ export function ImportLabAssistantModal({ isOpen, onClose, onImport }: ImportLab
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isImporting, setIsImporting] = useState(false);
+  const [previewData, setPreviewData] = useState<any[]>([]);
 
   if (!isOpen) return null;
-
-  const parseCsv = async (selectedFile: File) => {
-    const text = await selectedFile.text();
-    const lines = text.split('\n').map((line) => line.trim()).filter(Boolean);
-    if (lines.length < 2) return [];
-
-    return lines.slice(1).map((line) => {
-      const [name, email, password, studentId, lab, supervisor, semester, gpa, phone, status] = line.split(',').map((v) => v.trim());
-      return {
-        name,
-        email,
-        password,
-        studentId,
-        lab,
-        supervisor,
-        semester: Number(semester || 1),
-        gpa: Number(gpa || 0),
-        phone,
-        status: status || 'Aktif',
-      };
-    });
-  };
 
   const handleImport = async () => {
     if (!file) {
@@ -48,12 +28,15 @@ export function ImportLabAssistantModal({ isOpen, onClose, onImport }: ImportLab
     try {
       setIsImporting(true);
       setError('');
-      const rows = await parseCsv(file);
-      await onImport(rows);
-      setSuccess(`Import ${rows.length} data aslab berhasil`);
-      toast.success(`Import ${rows.length} data aslab berhasil`);
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await api.postFormData<{ assistants: any[]; imported: number }>('/admin/lab-assistants/import', fd);
+      await onImport(res?.assistants || []);
+      setSuccess(`Import ${res?.imported || 0} data aslab berhasil`);
+      toast.success(`Import ${res?.imported || 0} data aslab berhasil`);
       setTimeout(() => {
         setFile(null);
+        setPreviewData([]);
         setSuccess('');
         onClose();
       }, 1000);
@@ -66,16 +49,7 @@ export function ImportLabAssistantModal({ isOpen, onClose, onImport }: ImportLab
   };
 
   const handleDownloadTemplate = () => {
-    const csvContent = 'Nama,Email,Password,NIM,Lab,Supervisor,Semester,IPK,No Telepon,Status\nAslab Contoh,aslab@university.ac.id,password123,TI2021001,Laboratorium Pemrograman,Dr. Budi Santoso,7,3.8,08123456789,Aktif';
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'template-import-aslab.csv';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
+    window.open(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'}/admin/lab-assistants/import/template`, '_blank');
   };
 
   return (
@@ -84,7 +58,7 @@ export function ImportLabAssistantModal({ isOpen, onClose, onImport }: ImportLab
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
           <div>
             <h2 className="text-gray-900">Import Data Aslab</h2>
-            <p className="text-sm text-gray-600 mt-1">Upload file CSV untuk import data aslab</p>
+            <p className="text-sm text-gray-600 mt-1">Upload file Excel (.xlsx) untuk import data aslab</p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
             <X className="w-6 h-6" />
@@ -105,26 +79,50 @@ export function ImportLabAssistantModal({ isOpen, onClose, onImport }: ImportLab
           <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
             <Upload className="w-10 h-10 text-gray-400 mx-auto mb-3" />
             <label className="cursor-pointer">
-              <span className="text-blue-600 hover:text-blue-700">Pilih file</span>
-              <input
-                type="file"
-                accept=".csv"
-                className="hidden"
-                onChange={(e) => {
-                  setError('');
-                  setSuccess('');
-                  const selected = e.target.files?.[0] || null;
-                  setFile(selected);
-                }}
-              />
-            </label>
-            <p className="text-xs text-gray-500 mt-2">Format: CSV</p>
+                <span className="text-blue-600 hover:text-blue-700">Pilih file</span>
+                <input
+                  type="file"
+                  accept=".xlsx"
+                  className="hidden"
+                  onChange={async (e) => {
+                    setError('');
+                    setSuccess('');
+                    const selected = e.target.files?.[0] || null;
+                    if (selected && selected.name.split('.').pop()?.toLowerCase() !== 'xlsx') {
+                      setError('Format file tidak didukung. Gunakan .xlsx');
+                      setFile(null);
+                      setPreviewData([]);
+                      return;
+                    }
+                    setFile(selected);
+                    if (selected) {
+                      const fd = new FormData();
+                      fd.append('file', selected);
+                      try {
+                        const res = await api.postFormData<{ preview: any[] }>('/admin/lab-assistants/import/preview', fd);
+                        setPreviewData(res?.preview || []);
+                      } catch (err) {
+                        setError(err instanceof Error ? err.message : 'Gagal preview file');
+                        setPreviewData([]);
+                      }
+                    } else {
+                      setPreviewData([]);
+                    }
+                  }}
+                />
+              </label>
+            <p className="text-xs text-gray-500 mt-2">Format: .xlsx</p>
           </div>
 
           {file && (
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 flex items-center gap-2">
               <FileText className="w-4 h-4 text-gray-600" />
               <span className="text-sm text-gray-900">{file.name}</span>
+            </div>
+          )}
+          {previewData.length > 0 && (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm text-gray-700">
+              {previewData.length} data siap diimport
             </div>
           )}
 

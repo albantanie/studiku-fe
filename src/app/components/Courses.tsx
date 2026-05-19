@@ -10,7 +10,7 @@ interface CoursesProps {
 
 export function Courses({ selectedCourseId, onClearSelection }: CoursesProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [academicYear, setAcademicYear] = useState('2025/2026');
+  const [academicYear, setAcademicYear] = useState('all');
   const [selectedCourse, setSelectedCourse] = useState<any>(null);
   const [enrolledCourses, setEnrolledCourses] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -42,11 +42,15 @@ export function Courses({ selectedCourseId, onClearSelection }: CoursesProps) {
     }
   }, [selectedCourseId]);
 
-  const filteredCourses = enrolledCourses.filter((course) =>
-    course.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    course.lecturer.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    course.tutor.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const academicYears = Array.from(new Set((enrolledCourses || []).map((c) => c.academicYear).filter(Boolean)));
+  const filteredCourses = enrolledCourses.filter((course) => {
+    const matchesSearch =
+      course.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      course.lecturer.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      course.tutor.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesYear = academicYear === 'all' || course.academicYear === academicYear;
+    return matchesSearch && matchesYear;
+  });
 
   // Jika ada kursus yang dipilih, tampilkan detail
   if (selectedCourse) {
@@ -79,9 +83,10 @@ export function Courses({ selectedCourseId, onClearSelection }: CoursesProps) {
             onChange={(e) => setAcademicYear(e.target.value)}
             className="px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:outline-none bg-white"
           >
-            <option value="2025/2026">Tahun Akademik 2025/2026</option>
-            <option value="2024/2025">Tahun Akademik 2024/2025</option>
-            <option value="2023/2024">Tahun Akademik 2023/2024</option>
+            <option value="all">Semua Tahun Akademik</option>
+            {academicYears.map((year) => (
+              <option key={year} value={year}>Tahun Akademik {year}</option>
+            ))}
           </select>
         </div>
       </div>

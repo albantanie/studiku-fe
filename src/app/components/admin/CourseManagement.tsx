@@ -72,6 +72,7 @@ export function CourseManagement() {
     const matchesCategory = selectedAcademicYear === 'all' || course.academicYear === selectedAcademicYear;
     return matchesSearch && matchesCategory;
   });
+  const academicYears = Array.from(new Set(courses.map((c) => c.academicYear).filter(Boolean)));
 
   const handleAddCourse = () => {
     setSelectedCourse(null);
@@ -221,9 +222,9 @@ export function CourseManagement() {
               className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="all">Semua Tahun Akademik</option>
-              <option value="Genap 2024/2025">Genap 2024/2025</option>
-              <option value="Ganjil 2024/2025">Ganjil 2024/2025</option>
-              <option value="Genap 2025/2026">Genap 2025/2026</option>
+              {academicYears.map((year) => (
+                <option key={year} value={year}>{year}</option>
+              ))}
             </select>
           </div>
         </div>

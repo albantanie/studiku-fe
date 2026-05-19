@@ -76,7 +76,7 @@ interface Submission {
 
 export function AssistantPracticals() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [academicYear, setAcademicYear] = useState('2025/2026');
+  const [academicYear, setAcademicYear] = useState('all');
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [activeTab, setActiveTab] = useState<'sesi' | 'tugas'>('sesi');
@@ -88,103 +88,31 @@ export function AssistantPracticals() {
   const [showStudentAttendanceModal, setShowStudentAttendanceModal] = useState(false);
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
-  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([
-    { id: 1, nim: '210101001', name: 'Ahmad Fauzi', status: 'Hadir', time: '08:05' },
-    { id: 2, nim: '210101002', name: 'Siti Nurhaliza', status: 'Hadir', time: '08:03' },
-    { id: 3, nim: '210101003', name: 'Budi Santoso', status: 'Hadir', time: '08:10' },
-    { id: 4, nim: '210101004', name: 'Dewi Lestari', status: 'Izin', time: '-' },
-    { id: 5, nim: '210101005', name: 'Eko Prasetyo', status: 'Hadir', time: '08:02' },
-    { id: 6, nim: '210101006', name: 'Fitri Handayani', status: 'Hadir', time: '08:07' },
-    { id: 7, nim: '210101007', name: 'Gani Wijaya', status: 'Tidak Hadir', time: '-' },
-    { id: 8, nim: '210101008', name: 'Hesti Wulandari', status: 'Hadir', time: '08:04' },
-  ]);
+  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [assistantAttendanceStatus, setAssistantAttendanceStatus] = useState<'Hadir' | 'Tidak Hadir' | ''>('Hadir');
   const [assistantAttendanceTime, setAssistantAttendanceTime] = useState('08:00');
   const [isLoadingCourses, setIsLoadingCourses] = useState(true);
   const [coursesError, setCoursesError] = useState('');
 
   // Kursus yang diajar oleh asisten lab
-  const [courses, setCourses] = useState<Course[]>([
-    {
-      id: 1,
-      courseCode: 'TIF101',
-      name: 'Pemrograman Dasar',
-      lecturer: 'Dr. Ahmad Rahman',
-      class: 'TIF-A',
-      lab: 'Lab 301',
-      schedule: {
-        day: 'Senin',
-        startTime: '14:00',
-        endTime: '16:00',
-      },
-      semester: 'Ganjil',
-      academicYear: '2025/2026',
-      students: 35,
-      attendance: {
-        present: 12,
-        total: 14,
-        percentage: 86,
-      },
-      color: 'bg-blue-500',
-    },
-    {
-      id: 2,
-      courseCode: 'TIF102',
-      name: 'Struktur Data',
-      lecturer: 'Prof. Siti Nurhaliza',
-      class: 'TIF-B',
-      lab: 'Lab 302',
-      schedule: {
-        day: 'Rabu',
-        startTime: '14:00',
-        endTime: '16:00',
-      },
-      semester: 'Ganjil',
-      academicYear: '2025/2026',
-      students: 38,
-      attendance: {
-        present: 13,
-        total: 14,
-        percentage: 93,
-      },
-      color: 'bg-blue-500',
-    },
-    {
-      id: 3,
-      courseCode: 'TIF201',
-      name: 'Basis Data',
-      lecturer: 'Ir. Budi Hartono',
-      class: 'TIF-C',
-      lab: 'Lab 303',
-      schedule: {
-        day: 'Jumat',
-        startTime: '14:00',
-        endTime: '16:00',
-      },
-      semester: 'Ganjil',
-      academicYear: '2025/2026',
-      students: 32,
-      attendance: {
-        present: 14,
-        total: 14,
-        percentage: 100,
-      },
-      color: 'bg-blue-500',
-    },
-  ]);
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [materials, setMaterials] = useState<Material[]>([]);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
 
   useEffect(() => {
     const load = async () => {
       setIsLoadingCourses(true);
       setCoursesError('');
       try {
-        const data = await api.get<any[]>('/admin/courses');
-        setCourses((data || []).map((c) => ({
+        const payload = await api.get<any>('/assistant/practicals');
+        setCourses((payload?.courses || []).map((c: any) => ({
           id: c.id,
-          courseCode: c.classCode || c.code || '-',
+          courseCode: c.courseCode || c.classCode || c.code || '-',
           name: c.name,
           lecturer: c.instructor || '-',
-          class: c.classCode || '-',
+          class: c.class || c.classCode || '-',
           lab: c.room || '-',
           schedule: {
             day: c.day || '-',
@@ -201,6 +129,11 @@ export function AssistantPracticals() {
           },
           color: c.color || 'bg-blue-500',
         })));
+        setSessions(payload?.sessions || []);
+        setMaterials(payload?.materials || []);
+        setAssignments(payload?.assignments || []);
+        setSubmissions(payload?.submissions || []);
+        setAttendanceRecords(payload?.attendanceRecords || []);
       } catch (err) {
         setCoursesError(err instanceof Error ? err.message : 'Gagal memuat kursus aslab');
       } finally {
@@ -210,20 +143,16 @@ export function AssistantPracticals() {
     load();
   }, []);
 
-  const sessions: Session[] = [];
-
-  const materials: Material[] = [];
-
-  const assignments: Assignment[] = [];
-
-  const submissions: Submission[] = [];
-
-  const filteredCourses = courses.filter((course) =>
-    course.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    course.courseCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    course.lecturer.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    course.class.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const academicYears = Array.from(new Set((courses || []).map((c) => c.academicYear).filter(Boolean)));
+  const filteredCourses = courses.filter((course) => {
+    const matchesSearch =
+      course.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      course.courseCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      course.lecturer.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      course.class.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesYear = academicYear === 'all' || course.academicYear === academicYear;
+    return matchesSearch && matchesYear;
+  });
 
   const handleCourseClick = (course: Course) => {
     setSelectedCourse(course);
@@ -1092,9 +1021,10 @@ export function AssistantPracticals() {
             onChange={(e) => setAcademicYear(e.target.value)}
             className="px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:outline-none bg-white"
           >
-            <option value="2025/2026">Tahun Akademik 2025/2026</option>
-            <option value="2024/2025">Tahun Akademik 2024/2025</option>
-            <option value="2023/2024">Tahun Akademik 2023/2024</option>
+            <option value="all">Semua Tahun Akademik</option>
+            {academicYears.map((year) => (
+              <option key={year} value={year}>Tahun Akademik {year}</option>
+            ))}
           </select>
         </div>
       </div>

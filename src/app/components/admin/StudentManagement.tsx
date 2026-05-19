@@ -230,9 +230,8 @@ export function StudentManagement() {
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
         onImport={(data) => {
-          console.log('Imported students:', data);
-          // Here you would handle the imported data
-          // For example: add to state, send to API, etc.
+          setStudents(data || []);
+          setIsImportModalOpen(false);
         }}
       />
 

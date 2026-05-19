@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, BookOpen, Users } from 'lucide-react';
+import { api } from '../../../services/api';
 
 interface ClassData {
   name: string;
@@ -21,7 +22,7 @@ export function AddEditClassModal({ isOpen, onClose, onSave, classData }: AddEdi
   const [formData, setFormData] = useState<ClassData>({
     name: '',
     code: '',
-    academicYear: '2024/2025',
+    academicYear: '',
     semester: 'Genap',
     capacity: 40,
     courses: []
@@ -29,6 +30,13 @@ export function AddEditClassModal({ isOpen, onClose, onSave, classData }: AddEdi
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [courseInput, setCourseInput] = useState('');
+  const [academicYears, setAcademicYears] = useState<string[]>([]);
+
+  useEffect(() => {
+    api.get<any[]>('/admin/academic-years')
+      .then((data) => setAcademicYears((data || []).map((x) => x.name).filter(Boolean)))
+      .catch(() => setAcademicYears([]));
+  }, []);
 
   useEffect(() => {
     if (classData) {
@@ -44,7 +52,7 @@ export function AddEditClassModal({ isOpen, onClose, onSave, classData }: AddEdi
       setFormData({
         name: '',
         code: '',
-        academicYear: '2024/2025',
+        academicYear: academicYears[0] || '',
         semester: 'Genap',
         capacity: 40,
         courses: []
@@ -52,7 +60,7 @@ export function AddEditClassModal({ isOpen, onClose, onSave, classData }: AddEdi
     }
     setErrors({});
     setCourseInput('');
-  }, [classData, isOpen]);
+  }, [classData, isOpen, academicYears]);
 
   if (!isOpen) return null;
 
@@ -112,7 +120,7 @@ export function AddEditClassModal({ isOpen, onClose, onSave, classData }: AddEdi
     setFormData({
       name: '',
       code: '',
-      academicYear: '2024/2025',
+      academicYear: academicYears[0] || '',
       semester: 'Genap',
       capacity: 40,
       courses: []
@@ -195,9 +203,11 @@ export function AddEditClassModal({ isOpen, onClose, onSave, classData }: AddEdi
                     onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
-                    <option value="2023/2024">2023/2024</option>
-                    <option value="2024/2025">2024/2025</option>
-                    <option value="2025/2026">2025/2026</option>
+                    {academicYears.length === 0 ? (
+                      <option value="2024/2025">2024/2025</option>
+                    ) : (
+                      academicYears.map((year) => <option key={year} value={year}>{year}</option>)
+                    )}
                   </select>
                 </div>
 

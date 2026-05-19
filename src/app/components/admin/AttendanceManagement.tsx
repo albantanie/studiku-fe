@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Search, Calendar, Users, Clock, CheckCircle, XCircle, AlertCircle, Filter, Eye, ChevronRight, ArrowLeft, BookOpen } from 'lucide-react';
+import { api } from '../../../services/api';
 
 interface Course {
   id: number;
@@ -43,110 +44,29 @@ export function AttendanceManagement() {
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [sessions, setSessions] = useState<{ [key: number]: Session[] }>({});
+  const [studentAttendanceData, setStudentAttendanceData] = useState<{ [key: number]: StudentAttendance[] }>({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  // Data Kursus
-  const courses: Course[] = [
-    {
-      id: 1,
-      name: 'Pemrograman Dasar',
-      code: 'TIF101',
-      class: 'A1',
-      instructor: 'Dr. Budi Santoso',
-      assistant: 'Andi Prasetyo',
-      totalSessions: 14,
-      completedSessions: 8,
-      totalStudents: 35
-    },
-    {
-      id: 2,
-      name: 'Struktur Data',
-      code: 'TIF102',
-      class: 'B1',
-      instructor: 'Prof. Siti Aminah',
-      assistant: 'Budi Prasetyo',
-      totalSessions: 14,
-      completedSessions: 10,
-      totalStudents: 38
-    },
-    {
-      id: 3,
-      name: 'Basis Data',
-      code: 'TIF201',
-      class: 'C1',
-      instructor: 'Dr. Ahmad Wijaya',
-      assistant: 'Siti Aminah',
-      totalSessions: 14,
-      completedSessions: 5,
-      totalStudents: 32
-    },
-    {
-      id: 4,
-      name: 'Pemrograman Web',
-      code: 'TIF202',
-      class: 'TI-201',
-      instructor: 'Dr. Rina Kusuma',
-      assistant: 'Dewi Lestari',
-      totalSessions: 14,
-      completedSessions: 12,
-      totalStudents: 40
-    }
-  ];
-
-  // Data Sesi per Kursus
-  const sessions: { [key: number]: Session[] } = {
-    1: [
-      { id: 1, courseId: 1, sessionNumber: 1, date: '2025-01-06', time: '08:00 - 10:00', topic: 'Pengenalan Pemrograman', present: 33, absent: 1, excused: 1, totalStudents: 35, status: 'Selesai', assistantStatus: 'Hadir', assistantCheckInTime: '07:55' },
-      { id: 2, courseId: 1, sessionNumber: 2, date: '2025-01-08', time: '08:00 - 10:00', topic: 'Variabel dan Tipe Data', present: 32, absent: 2, excused: 1, totalStudents: 35, status: 'Selesai', assistantStatus: 'Hadir', assistantCheckInTime: '07:58' },
-      { id: 3, courseId: 1, sessionNumber: 3, date: '2025-01-13', time: '08:00 - 10:00', topic: 'Percabangan dan Perulangan', present: 30, absent: 3, excused: 2, totalStudents: 35, status: 'Berlangsung', assistantStatus: 'Hadir', assistantCheckInTime: '07:52' },
-      { id: 4, courseId: 1, sessionNumber: 4, date: '2025-01-15', time: '08:00 - 10:00', topic: 'Array dan String', present: 0, absent: 0, excused: 0, totalStudents: 35, status: 'Dijadwalkan', assistantStatus: 'Hadir' },
-      { id: 5, courseId: 1, sessionNumber: 5, date: '2025-01-20', time: '08:00 - 10:00', topic: 'Fungsi', present: 0, absent: 0, excused: 0, totalStudents: 35, status: 'Dijadwalkan', assistantStatus: 'Hadir' },
-    ],
-    2: [
-      { id: 6, courseId: 2, sessionNumber: 1, date: '2025-01-07', time: '10:00 - 12:00', topic: 'Pengenalan Struktur Data', present: 36, absent: 1, excused: 1, totalStudents: 38, status: 'Selesai', assistantStatus: 'Hadir', assistantCheckInTime: '09:55' },
-      { id: 7, courseId: 2, sessionNumber: 2, date: '2025-01-09', time: '10:00 - 12:00', topic: 'Stack dan Queue', present: 38, absent: 0, excused: 0, totalStudents: 38, status: 'Selesai', assistantStatus: 'Izin' },
-      { id: 8, courseId: 2, sessionNumber: 3, date: '2025-01-14', time: '10:00 - 12:00', topic: 'Linked List', present: 35, absent: 2, excused: 1, totalStudents: 38, status: 'Selesai', assistantStatus: 'Hadir', assistantCheckInTime: '09:58' },
-    ],
-    3: [
-      { id: 9, courseId: 3, sessionNumber: 1, date: '2025-01-08', time: '13:00 - 15:00', topic: 'Pengenalan Database', present: 30, absent: 1, excused: 1, totalStudents: 32, status: 'Selesai', assistantStatus: 'Hadir', assistantCheckInTime: '12:55' },
-      { id: 10, courseId: 3, sessionNumber: 2, date: '2025-01-10', time: '13:00 - 15:00', topic: 'SQL Dasar', present: 31, absent: 0, excused: 1, totalStudents: 32, status: 'Selesai', assistantStatus: 'Tidak Hadir' },
-      { id: 11, courseId: 3, sessionNumber: 3, date: '2025-01-15', time: '13:00 - 15:00', topic: 'Relasi Tabel', present: 0, absent: 0, excused: 0, totalStudents: 32, status: 'Dijadwalkan', assistantStatus: 'Hadir' },
-    ],
-    4: [
-      { id: 12, courseId: 4, sessionNumber: 1, date: '2025-01-07', time: '15:00 - 17:00', topic: 'HTML & CSS', present: 38, absent: 1, excused: 1, totalStudents: 40, status: 'Selesai', assistantStatus: 'Hadir', assistantCheckInTime: '14:58' },
-      { id: 13, courseId: 4, sessionNumber: 2, date: '2025-01-09', time: '15:00 - 17:00', topic: 'JavaScript Dasar', present: 39, absent: 0, excused: 1, totalStudents: 40, status: 'Selesai', assistantStatus: 'Hadir', assistantCheckInTime: '14:55' },
-      { id: 14, courseId: 4, sessionNumber: 3, date: '2025-01-14', time: '15:00 - 17:00', topic: 'DOM Manipulation', present: 37, absent: 2, excused: 1, totalStudents: 40, status: 'Selesai', assistantStatus: 'Hadir', assistantCheckInTime: '14:52' },
-    ]
-  };
-
-  // Data Detail Presensi Mahasiswa per Sesi
-  const studentAttendanceData: { [key: number]: StudentAttendance[] } = {
-    1: [
-      { id: 1, nim: '210101001', name: 'Ahmad Fauzi', status: 'Hadir', checkInTime: '08:05' },
-      { id: 2, nim: '210101002', name: 'Siti Nurhaliza', status: 'Hadir', checkInTime: '08:03' },
-      { id: 3, nim: '210101003', name: 'Budi Setiawan', status: 'Izin' },
-      { id: 4, nim: '210101004', name: 'Dewi Kartika', status: 'Tidak Hadir' },
-      { id: 5, nim: '210101005', name: 'Eko Prasetyo', status: 'Hadir', checkInTime: '08:01' },
-      { id: 6, nim: '210101006', name: 'Fitri Handayani', status: 'Hadir', checkInTime: '08:04' },
-      { id: 7, nim: '210101007', name: 'Gunawan Wijaya', status: 'Hadir', checkInTime: '08:02' },
-    ],
-    2: [
-      { id: 8, nim: '210101008', name: 'Hendra Saputra', status: 'Hadir', checkInTime: '08:06' },
-      { id: 9, nim: '210101009', name: 'Indah Permata', status: 'Hadir', checkInTime: '08:03' },
-      { id: 10, nim: '210101010', name: 'Joko Widodo', status: 'Tidak Hadir' },
-      { id: 11, nim: '210101011', name: 'Kartika Sari', status: 'Hadir', checkInTime: '08:07' },
-      { id: 12, nim: '210101012', name: 'Linda Wijaya', status: 'Izin' },
-    ],
-    3: [
-      { id: 13, nim: '210101013', name: 'Muhammad Ali', status: 'Hadir', checkInTime: '08:04' },
-      { id: 14, nim: '210101014', name: 'Nurul Fadillah', status: 'Hadir', checkInTime: '08:05' },
-      { id: 15, nim: '210101015', name: 'Omar Abdullah', status: 'Hadir', checkInTime: '08:03' },
-      { id: 16, nim: '210101016', name: 'Putri Ayu', status: 'Izin' },
-      { id: 17, nim: '210101017', name: 'Qori Rahayu', status: 'Hadir', checkInTime: '08:06' },
-      { id: 18, nim: '210101018', name: 'Rudi Hartono', status: 'Tidak Hadir' },
-      { id: 19, nim: '210101019', name: 'Sari Dewi', status: 'Izin' },
-      { id: 20, nim: '210101020', name: 'Tono Sumarno', status: 'Tidak Hadir' },
-    ],
-  };
+  useEffect(() => {
+    const load = async () => {
+      setIsLoading(true);
+      setError('');
+      try {
+        const payload = await api.get<any>('/admin/attendance');
+        setCourses(payload?.courses || []);
+        setSessions(payload?.sessions || {});
+        setStudentAttendanceData(payload?.studentAttendanceData || {});
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Gagal memuat data presensi');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    load();
+  }, []);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -198,6 +118,8 @@ export function AttendanceManagement() {
 
     return (
       <div className="space-y-6">
+        {isLoading && <div className="text-sm text-gray-600">Memuat presensi...</div>}
+        {error && <div className="text-sm text-red-600">{error}</div>}
         {/* Header */}
         <div>
           <h1 className="text-gray-900">Presensi</h1>
