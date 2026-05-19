@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Search, Plus, Edit2, Trash2, Mail, Phone, BookOpen, Filter, Clock, Pencil, Key } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, Mail, Phone, BookOpen, Filter, Clock, Upload, Pencil, Key } from 'lucide-react';
 import { AddEditLabAssistantModal } from './AddEditLabAssistantModal';
 import { DeleteLabAssistantModal } from './DeleteLabAssistantModal';
 import { PasswordManagementModal } from './PasswordManagementModal';
+import { ImportLabAssistantModal } from './ImportLabAssistantModal';
 import { api } from '../../../services/api';
+import { toast } from 'sonner';
 
 interface LabAssistant {
   id: number;
@@ -32,21 +34,14 @@ export function LabAssistantManagement() {
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [selectedAssistant, setSelectedAssistant] = useState<LabAssistant | null>(null);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
-
-  const [assistants, setAssistants] = useState<LabAssistant[]>([]);
-
-  useEffect(() => {
-    api.get<LabAssistant[]>('/admin/lab-assistants')
-      .then(setAssistants)
-      .catch((error) => console.error('Failed to load lab assistants:', error));
-  }, []);
-
-  const [labs, setLabs] = useState<any[]>([]);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [assistantsData, setAssistantsData] = useState<LabAssistant[]>([]);
+  const [labs, setLabs] = useState<string[]>([]);
+  const assistants: LabAssistant[] = assistantsData;
 
   useEffect(() => {
-    api.get<string[]>('/admin/labs')
-      .then(setLabs)
-      .catch((error) => console.error('Failed to load labs:', error));
+    api.get<LabAssistant[]>('/admin/lab-assistants').then((data) => setAssistantsData(data || [])).catch(() => setAssistantsData([]));
+    api.get<any[]>('/admin/labs').then((data) => setLabs((data || []).map((x: any) => x.label || x.value || String(x)))).catch(() => setLabs([]));
   }, []);
 
   const filteredAssistants = assistants.filter(assistant => {
@@ -74,28 +69,45 @@ export function LabAssistantManagement() {
     setIsDeleteModalOpen(true);
   };
 
-  const handleSaveAssistant = async (assistant: LabAssistant) => {
-    if (modalMode === 'edit' && selectedAssistant) {
-      const updated = await api.put<LabAssistant>(`/admin/lab-assistants/${selectedAssistant.id}`, {
-        ...selectedAssistant,
-        ...assistant
-      });
-      setAssistants(assistants.map((item) => item.id === selectedAssistant.id ? updated : item));
-      return;
-    }
-
-    const created = await api.post<LabAssistant>('/admin/lab-assistants', {
-      ...assistant,
-      defaultPassword: assistant.password || 'password',
-      isPasswordChanged: false
-    });
-    setAssistants([...assistants, created]);
+  const handleSaveAssistant = (assistant: LabAssistant) => {
+    // Mock save action
+    console.log('Saving assistant:', assistant);
   };
 
-  const handleConfirmDelete = async () => {
-    if (!selectedAssistant) return;
-    await api.delete(`/admin/lab-assistants/${selectedAssistant.id}`);
-    setAssistants(assistants.filter((assistant) => assistant.id !== selectedAssistant.id));
+  const handleImportAssistants = async (data: any[]) => {
+    try {
+      await api.post('/admin/lab-assistants/import', { items: data });
+      toast.success('Import tersimpan ke backend.');
+    } catch {
+      toast.warning('Import backend gagal.');
+    }
+
+    const mapped: LabAssistant[] = data.map((item, index) => ({
+      id: Date.now() + index,
+      name: item.name || '-',
+      email: item.email || '-',
+      phone: item.phone || '-',
+      studentId: item.studentId || '-',
+      lab: item.lab || 'Laboratorium Pemrograman',
+      supervisor: item.supervisor || '-',
+      semester: item.semester || 1,
+      gpa: item.gpa || 0,
+      assignedCourses: 0,
+      weeklyHours: 0,
+      status: item.status || 'Aktif',
+      joinDate: new Date().toISOString().split('T')[0],
+      password: item.password || 'default123',
+      defaultPassword: item.password || 'default123',
+      isPasswordChanged: false,
+    }));
+
+    setAssistantsData((prev) => [...mapped, ...prev]);
+    toast.success(`Import data aslab (${mapped.length}) diproses.`);
+  };
+
+  const handleConfirmDelete = () => {
+    // Mock delete action
+    console.log('Deleting assistant:', selectedAssistant);
   };
 
   const handleManagePassword = (assistant: LabAssistant) => {
@@ -103,10 +115,9 @@ export function LabAssistantManagement() {
     setIsPasswordModalOpen(true);
   };
 
-  const handleResetPassword = async () => {
-    if (!selectedAssistant) return;
-    const updated = await api.put<LabAssistant>(`/admin/lab-assistants/${selectedAssistant.id}/reset-password`, {});
-    setAssistants(assistants.map((assistant) => assistant.id === selectedAssistant.id ? updated : assistant));
+  const handleResetPassword = () => {
+    console.log('Reset password for assistant:', selectedAssistant);
+    // Here you would handle the reset password operation
   };
 
   return (
@@ -119,6 +130,13 @@ export function LabAssistantManagement() {
       <div className="flex items-center justify-between">
         <h3 className="text-gray-900">Data Asisten Laboratorium</h3>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsImportModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            <Upload className="w-5 h-5" />
+            <span className="hidden sm:inline">Import Data</span>
+          </button>
           <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors" onClick={handleAddAssistant}>
             <Plus className="w-5 h-5" />
             <span className="hidden sm:inline">Tambah Asisten</span>
@@ -147,11 +165,7 @@ export function LabAssistantManagement() {
               className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="all">Semua Lab</option>
-              <option value="Laboratorium Pemrograman">Laboratorium Pemrograman</option>
-              <option value="Laboratorium Database">Laboratorium Database</option>
-              <option value="Laboratorium Jaringan">Laboratorium Jaringan</option>
-              <option value="Laboratorium AI & Machine Learning">Laboratorium AI & Machine Learning</option>
-              <option value="Laboratorium Desain">Laboratorium Desain</option>
+              {labs.map((lab) => <option key={lab} value={lab}>{lab}</option>)}
             </select>
           </div>
         </div>
@@ -222,9 +236,17 @@ export function LabAssistantManagement() {
       </div>
 
       {/* Pagination */}
-      <div className="px-4 py-3 bg-white border border-gray-200 rounded-lg">
+      <div className="flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg">
         <div className="text-sm text-gray-600">
           Menampilkan <span className="text-gray-900">{filteredAssistants.length}</span> dari <span className="text-gray-900">{assistants.length}</span> asisten
+        </div>
+        <div className="flex gap-2">
+          <button className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50">
+            Sebelumnya
+          </button>
+          <button className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+            Selanjutnya
+          </button>
         </div>
       </div>
 
@@ -255,6 +277,12 @@ export function LabAssistantManagement() {
         defaultPassword={selectedAssistant?.defaultPassword || ''}
         isPasswordChanged={selectedAssistant?.isPasswordChanged || false}
         onResetPassword={handleResetPassword}
+      />
+
+      <ImportLabAssistantModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onImport={handleImportAssistants}
       />
     </div>
   );

@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Search, Award, BookOpen, Users, Filter, Eye, TrendingUp, TrendingDown } from 'lucide-react';
-import { api } from '../../../services/api';
 
 interface CourseGrade {
   id: number;
@@ -36,9 +35,75 @@ export function GradeManagement() {
   const [filterAcademicYear, setFilterAcademicYear] = useState<string>('all');
   const [studentSearchQuery, setStudentSearchQuery] = useState('');
 
-  const [courseGrades, setCourseGrades] = useState<CourseGrade[]>([]);
+  const courseGrades: CourseGrade[] = [
+    {
+      id: 1,
+      courseName: 'Pemrograman Dasar',
+      courseCode: 'TIF101',
+      className: 'TIF-A',
+      semester: 'Ganjil',
+      academicYear: '2024/2025',
+      totalStudents: 35,
+      averageGrade: 78.5,
+      highestGrade: 95,
+      lowestGrade: 55,
+      passRate: 94.3
+    },
+    {
+      id: 2,
+      courseName: 'Struktur Data',
+      courseCode: 'TIF102',
+      className: 'TIF-B',
+      semester: 'Ganjil',
+      academicYear: '2024/2025',
+      totalStudents: 38,
+      averageGrade: 82.3,
+      highestGrade: 98,
+      lowestGrade: 62,
+      passRate: 97.4
+    },
+    {
+      id: 3,
+      courseName: 'Basis Data',
+      courseCode: 'TIF201',
+      className: 'TIF-C',
+      semester: 'Genap',
+      academicYear: '2024/2025',
+      totalStudents: 32,
+      averageGrade: 75.8,
+      highestGrade: 92,
+      lowestGrade: 48,
+      passRate: 87.5
+    },
+    {
+      id: 4,
+      courseName: 'Pemrograman Web',
+      courseCode: 'TIF202',
+      className: 'TIF-D',
+      semester: 'Genap',
+      academicYear: '2024/2025',
+      totalStudents: 40,
+      averageGrade: 80.2,
+      highestGrade: 96,
+      lowestGrade: 58,
+      passRate: 92.5
+    },
+    {
+      id: 5,
+      courseName: 'Kecerdasan Buatan',
+      courseCode: 'TIF301',
+      className: 'TIF-E',
+      semester: 'Ganjil',
+      academicYear: '2024/2025',
+      totalStudents: 28,
+      averageGrade: 76.9,
+      highestGrade: 94,
+      lowestGrade: 52,
+      passRate: 89.3
+    },
+  ];
 
-  const [studentGradesData, setStudentGradesData] = useState<{ [key: number]: StudentGrade[] }>({
+  const studentGradesData: { [key: number]: StudentGrade[] } = {
     1: [
       { 
         id: 1, 
@@ -101,16 +166,7 @@ export function GradeManagement() {
         status: 'Lulus'
       },
     ],
-  });
-
-  useEffect(() => {
-    api.get<{ courseGrades: CourseGrade[]; studentGradesData: { [key: number]: StudentGrade[] } }>('/admin/grades')
-      .then((data) => {
-        setCourseGrades(data.courseGrades);
-        setStudentGradesData(data.studentGradesData);
-      })
-      .catch((error) => console.error('Failed to load admin grades:', error));
-  }, []);
+  };
 
   const filteredCourses = courseGrades.filter(course => {
     const matchesSearch = 
@@ -394,7 +450,7 @@ export function GradeManagement() {
             <div>
               <p className="text-sm text-gray-600 mb-1">Rata-rata Nilai</p>
               <p className="text-3xl font-bold text-gray-900">
-                {courseGrades.length > 0 ? (courseGrades.reduce((sum, course) => sum + course.averageGrade, 0) / courseGrades.length).toFixed(1) : '0.0'}
+                {(courseGrades.reduce((sum, course) => sum + course.averageGrade, 0) / courseGrades.length).toFixed(1)}
               </p>
             </div>
             <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
@@ -408,7 +464,7 @@ export function GradeManagement() {
             <div>
               <p className="text-sm text-gray-600 mb-1">Rata-rata Kelulusan</p>
               <p className="text-3xl font-bold text-gray-900">
-                {courseGrades.length > 0 ? (courseGrades.reduce((sum, course) => sum + course.passRate, 0) / courseGrades.length).toFixed(1) : '0.0'}%
+                {(courseGrades.reduce((sum, course) => sum + course.passRate, 0) / courseGrades.length).toFixed(1)}%
               </p>
             </div>
             <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">

@@ -27,21 +27,20 @@ interface CourseDetailProps {
 export function CourseDetail({ course, onBack }: CourseDetailProps) {
   const [activeTab, setActiveTab] = useState<'sessions' | 'assignments'>('sessions');
   const [selectedSession, setSelectedSession] = useState<any>(null);
-
   const [materials, setMaterials] = useState<any[]>([]);
-
   const [courseSessions, setCourseSessions] = useState<any[]>([]);
-
   const [assignments, setAssignments] = useState<any[]>([]);
 
   useEffect(() => {
-    api.get<{ materials: typeof materials; courseSessions: typeof courseSessions; assignments: typeof assignments }>(`/student/courses/${course.id}/detail`)
-      .then((data) => {
-        setMaterials(data.materials);
-        setCourseSessions(data.courseSessions);
-        setAssignments(data.assignments);
-      })
-      .catch((error) => console.error('Failed to load course detail:', error));
+    api.get<any>(`/student/courses/${course.id}/detail`).then((data) => {
+      setMaterials(data?.materials || []);
+      setCourseSessions(data?.courseSessions || []);
+      setAssignments(data?.assignments || []);
+    }).catch(() => {
+      setMaterials([]);
+      setCourseSessions([]);
+      setAssignments([]);
+    });
   }, [course.id]);
 
   // Jika ada sesi yang dipilih, tampilkan detail

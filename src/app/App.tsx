@@ -11,74 +11,78 @@ import { LabAssistantManagement } from './components/admin/LabAssistantManagemen
 import { CourseManagement } from './components/admin/CourseManagement';
 import { AcademicYearManagement } from './components/admin/AcademicYearManagement';
 import { ClassData } from './components/admin/ClassData';
-import { AttendanceManagement } from './components/admin/AttendanceManagement';
-import { GradeManagement } from './components/admin/GradeManagement';
+import { AdminReports } from './components/admin/AdminReports';
 import { LecturerDashboard } from './components/lecturer/LecturerDashboard';
 import { LecturerCourses } from './components/lecturer/LecturerCourses';
 import { LecturerAttendance } from './components/lecturer/LecturerAttendance';
 import { LecturerGrades } from './components/lecturer/LecturerGrades';
+import { LecturerReports } from './components/lecturer/LecturerReports';
 import { AssistantDashboard } from './components/assistant/AssistantDashboard';
 import { AssistantPracticals } from './components/assistant/AssistantPracticals';
 import { AssistantAttendance } from './components/assistant/AssistantAttendance';
 import { AssistantReports } from './components/assistant/AssistantReports';
-import { LayoutDashboard, FileText, Award, Menu, X, LogOut, BookOpen, GraduationCap, Users, ChevronDown, ChevronRight, UserCog, Calendar, Database } from 'lucide-react';
-
-type UserRole = 'student' | 'admin' | 'lecturer' | 'assistant';
-
-type AuthUser = {
-  email: string;
-  role: UserRole;
-  name: string;
-};
-
-const AUTH_STORAGE_KEY = 'studiku.auth.user';
-
-function readStoredAuth(): AuthUser | null {
-  try {
-    const raw = localStorage.getItem(AUTH_STORAGE_KEY);
-    if (!raw) return null;
-    const user = JSON.parse(raw) as AuthUser;
-    if (!user.email || !user.name || !['student', 'admin', 'lecturer', 'assistant'].includes(user.role)) {
-      localStorage.removeItem(AUTH_STORAGE_KEY);
-      return null;
-    }
-    return user;
-  } catch {
-    localStorage.removeItem(AUTH_STORAGE_KEY);
-    return null;
-  }
-}
+import { LayoutDashboard, FileText, Award, Menu, X, LogOut, Settings, Bell, BookOpen, GraduationCap, Users, ChevronDown, ChevronRight, UserCog, Calendar, Database } from 'lucide-react';
+import { Toaster } from 'sonner';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
-  const [authUser, setAuthUser] = useState<AuthUser | null>(() => readStoredAuth());
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userRole, setUserRole] = useState<'student' | 'admin' | 'lecturer' | 'assistant'>('student');
+  const [userEmail, setUserEmail] = useState('');
   const [userMenuExpanded, setUserMenuExpanded] = useState(true);
+  const AUTH_STORAGE_KEY = 'studiku:auth-session';
 
-  const isLoggedIn = !!authUser;
-  const userRole: UserRole = authUser?.role || 'student';
-  const userEmail = authUser?.email || '';
-  const userName = authUser?.name || '';
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+      if (!raw) return;
+      const session = JSON.parse(raw) as {
+        isLoggedIn: boolean;
+        email: string;
+        role: 'student' | 'admin' | 'lecturer' | 'assistant';
+      };
+      if (session?.isLoggedIn && session.email && session.role) {
+        setIsLoggedIn(true);
+        setUserEmail(session.email);
+        setUserRole(session.role);
+      }
+    } catch {
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleAuthExpired = () => {
+      setIsLoggedIn(false);
+      setActiveTab('dashboard');
+      setUserEmail('');
+      setUserRole('student');
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+    };
+    window.addEventListener('studiku:auth-expired', handleAuthExpired);
+    return () => window.removeEventListener('studiku:auth-expired', handleAuthExpired);
+  }, []);
 
   const handleCourseSelect = (courseId: number) => {
     setSelectedCourseId(courseId);
     setActiveTab('courses');
   };
 
-  const handleLogin = (email: string, role: UserRole, name: string) => {
-    const user = { email, role, name };
-    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
-    setAuthUser(user);
-    setActiveTab('dashboard');
-    setSelectedCourseId(null);
+  const handleLogin = (email: string, role: 'student' | 'admin' | 'lecturer' | 'assistant') => {
+    setIsLoggedIn(true);
+    setUserEmail(email);
+    setUserRole(role);
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ isLoggedIn: true, email, role }));
   };
 
   const handleLogout = () => {
-    localStorage.removeItem(AUTH_STORAGE_KEY);
-    setAuthUser(null);
+    setIsLoggedIn(false);
     setActiveTab('dashboard');
-    setSelectedCourseId(null);
+    setUserEmail('');
+    setUserRole('student');
+    localStorage.removeItem(AUTH_STORAGE_KEY);
   };
 
   const studentMenuItems = [
@@ -93,15 +97,15 @@ export default function App() {
     { id: 'academic-year', label: 'Tahun Akademik', icon: Calendar },
     { id: 'class-data', label: 'Data Kelas', icon: Database },
     { id: 'courses', label: 'Kelola Kursus', icon: BookOpen },
-    { id: 'attendance', label: 'Presensi', icon: UserCog },
-    { id: 'grades-admin', label: 'Nilai', icon: Award },
+    { id: 'reports', label: 'Laporan', icon: FileText },
   ];
 
   const lecturerMenuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'courses', label: 'Kursus Saya', icon: BookOpen },
+    { id: 'courses', label: 'Kursus', icon: BookOpen },
     { id: 'attendance', label: 'Presensi', icon: UserCog },
     { id: 'grades', label: 'Nilai', icon: Award },
+    { id: 'reports', label: 'Laporan', icon: FileText },
   ];
 
   const assistantMenuItems = [
@@ -123,52 +127,23 @@ export default function App() {
     userRole === 'assistant' ? assistantMenuItems :
     studentMenuItems;
 
-  useEffect(() => {
-    const handleAuthExpired = () => handleLogout();
-    const handleStorage = (event: StorageEvent) => {
-      if (event.key === AUTH_STORAGE_KEY) {
-        setAuthUser(readStoredAuth());
-        setActiveTab('dashboard');
-        setSelectedCourseId(null);
-      }
-    };
-
-    window.addEventListener('studiku:auth-expired', handleAuthExpired);
-    window.addEventListener('storage', handleStorage);
-    return () => {
-      window.removeEventListener('studiku:auth-expired', handleAuthExpired);
-      window.removeEventListener('storage', handleStorage);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!isLoggedIn) return;
-    const allowedTabs = new Set([
-      ...menuItems.map((item) => item.id),
-      ...(userRole === 'admin' ? adminUserSubMenu.map((item) => item.id) : []),
-    ]);
-    if (!allowedTabs.has(activeTab)) {
-      setActiveTab('dashboard');
-      setSelectedCourseId(null);
-    }
-  }, [activeTab, isLoggedIn, menuItems, userRole]);
-
   // Show login page if not logged in
   if (!isLoggedIn) {
     return <Login onLogin={handleLogin} />;
   }
 
   const getUserName = () => {
-    return userName || userEmail;
+    if (userRole === 'admin') return 'Administrator';
+    if (userRole === 'lecturer') return 'Prof. Dr. Ahmad Wijaya';
+    if (userRole === 'assistant') return 'Andi Pratama';
+    return 'Budi Santoso';
   };
 
   const getUserInitials = () => {
-    return getUserName()
-      .split(' ')
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((part) => part[0]?.toUpperCase())
-      .join('') || 'US';
+    if (userRole === 'admin') return 'AD';
+    if (userRole === 'lecturer') return 'AW';
+    if (userRole === 'assistant') return 'AP';
+    return 'BS';
   };
 
   const getUserRole = () => {
@@ -180,6 +155,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <Toaster position="top-right" richColors />
       {/* Sidebar */}
       <aside
         className={`fixed top-0 left-0 z-40 h-screen w-64 bg-white border-r border-gray-200 transition-transform ${
@@ -315,6 +291,10 @@ export default function App() {
             <div className="mt-8 pt-8 border-t border-gray-200">
               <p className="px-4 text-xs text-gray-400 mb-2">PENGATURAN</p>
               <div className="space-y-1">
+                <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">
+                  <Settings className="w-5 h-5" />
+                  <span>Pengaturan</span>
+                </button>
                 <button 
                   onClick={handleLogout}
                   className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
@@ -356,6 +336,13 @@ export default function App() {
               </div>
 
               <div className="flex items-center gap-4">
+                <button className="relative text-gray-500 hover:text-gray-700">
+                  <Bell className="w-6 h-6" />
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white text-xs">
+                    3
+                  </span>
+                </button>
+                
                 {/* User Profile */}
                 <div className="flex items-center gap-3">
                   <div className="hidden sm:block text-right">
@@ -379,8 +366,7 @@ export default function App() {
               {activeTab === 'courses' && <CourseManagement />}
               {activeTab === 'academic-year' && <AcademicYearManagement />}
               {activeTab === 'class-data' && <ClassData />}
-              {activeTab === 'attendance' && <AttendanceManagement />}
-              {activeTab === 'grades-admin' && <GradeManagement />}
+              {activeTab === 'reports' && <AdminReports />}
               {activeTab === 'users-students' && <StudentManagement />}
               {activeTab === 'users-lecturers' && <LecturerManagement />}
               {activeTab === 'users-assistants' && <LabAssistantManagement />}
@@ -391,6 +377,7 @@ export default function App() {
               {activeTab === 'courses' && <LecturerCourses />}
               {activeTab === 'attendance' && <LecturerAttendance />}
               {activeTab === 'grades' && <LecturerGrades />}
+              {activeTab === 'reports' && <LecturerReports />}
             </>
           ) : userRole === 'assistant' ? (
             <>

@@ -1,4 +1,4 @@
-import { X, FileText, Video as VideoIcon, File } from 'lucide-react';
+import { X, Download, FileText, Video as VideoIcon, File } from 'lucide-react';
 
 interface MaterialModalProps {
   material: {
@@ -6,19 +6,20 @@ interface MaterialModalProps {
     title: string;
     type: string;
     size: string;
+    fileUrl?: string;
   };
   onClose: () => void;
 }
 
 export function MaterialModal({ material, onClose }: MaterialModalProps) {
   const getFileIcon = (type: string) => {
-    if (type.toLowerCase() === 'pdf') return <FileText className="w-6 h-6 text-red-500" />;
-    if (type.toLowerCase() === 'video') return <VideoIcon className="w-6 h-6 text-blue-500" />;
+    if (type === 'PDF') return <FileText className="w-6 h-6 text-red-500" />;
+    if (type === 'Video') return <VideoIcon className="w-6 h-6 text-blue-500" />;
     return <File className="w-6 h-6 text-gray-500" />;
   };
 
   const renderPreview = () => {
-    if (material.type.toLowerCase() === 'pdf') {
+    if (material.type === 'PDF') {
       return (
         <div className="w-full h-[500px] bg-gray-100 rounded-lg border border-gray-300 flex items-center justify-center">
           <div className="text-center">
@@ -30,7 +31,7 @@ export function MaterialModal({ material, onClose }: MaterialModalProps) {
       );
     }
 
-    if (material.type.toLowerCase() === 'video') {
+    if (material.type === 'Video') {
       return (
         <div className="w-full h-[500px] bg-black rounded-lg border border-gray-300 flex items-center justify-center">
           <div className="text-center">
@@ -68,6 +69,25 @@ export function MaterialModal({ material, onClose }: MaterialModalProps) {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {material.fileUrl ? (
+              <a
+                href={material.fileUrl}
+                download
+                className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Download className="w-4 h-4" />
+                <span>Download</span>
+              </a>
+            ) : (
+              <button
+                disabled
+                className="flex items-center gap-2 bg-gray-100 text-gray-400 px-4 py-2 rounded-lg cursor-not-allowed"
+                title="File materi belum tersedia"
+              >
+                <Download className="w-4 h-4" />
+                <span>Download</span>
+              </button>
+            )}
             <button
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600 transition-colors p-2"

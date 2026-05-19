@@ -3,88 +3,29 @@ import { BookOpen, Users, Award, Calendar, TrendingUp, Clock } from 'lucide-reac
 import { api } from '../../../services/api';
 
 export function LecturerDashboard() {
-  const [dashboardData, setDashboardData] = useState({
-    courses: [
-    {
-      id: 1,
-      code: 'TIF101',
-      name: 'Pemrograman Dasar',
-      class: 'TIF-A',
-      students: 35,
-      schedule: 'Senin, 08:00 - 10:00',
-      room: 'Lab 301',
-      averageGrade: 78.5,
-    },
-    {
-      id: 2,
-      code: 'TIF102',
-      name: 'Struktur Data',
-      class: 'TIF-B',
-      students: 38,
-      schedule: 'Rabu, 10:00 - 12:00',
-      room: 'Lab 302',
-      averageGrade: 82.3,
-    },
-    {
-      id: 3,
-      code: 'TIF201',
-      name: 'Basis Data',
-      class: 'TIF-C',
-      students: 32,
-      schedule: 'Jumat, 13:00 - 15:00',
-      room: 'Lab 303',
-      averageGrade: 75.8,
-    },
-    ],
-
-    upcomingClasses: [
-    {
-      id: 1,
-      course: 'Pemrograman Dasar',
-      class: 'TIF-A',
-      time: 'Senin, 08:00 - 10:00',
-      room: 'Lab 301',
-      topic: 'Perulangan dan Fungsi',
-    },
-    {
-      id: 2,
-      course: 'Struktur Data',
-      class: 'TIF-B',
-      time: 'Rabu, 10:00 - 12:00',
-      room: 'Lab 302',
-      topic: 'Binary Search Tree',
-    },
-    ],
-
-    recentActivities: [
-    {
-      id: 1,
-      type: 'assignment',
-      message: '12 mahasiswa mengumpulkan Tugas 3 - Pemrograman Dasar',
-      time: '2 jam lalu',
-    },
-    {
-      id: 2,
-      type: 'grade',
-      message: 'Nilai UTS Struktur Data telah diinput',
-      time: '5 jam lalu',
-    },
-    {
-      id: 3,
-      type: 'attendance',
-      message: 'Presensi kelas Basis Data (TIF-C) telah dicatat',
-      time: '1 hari lalu',
-    },
-    ],
-  });
+  const [courses, setCourses] = useState<any[]>([]);
+  const [upcomingClasses, setUpcomingClasses] = useState<any[]>([]);
+  const [recentActivities, setRecentActivities] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    api.get<typeof dashboardData>('/lecturer/dashboard')
-      .then(setDashboardData)
-      .catch((error) => console.error('Failed to load lecturer dashboard:', error));
+    const load = async () => {
+      setIsLoading(true);
+      setError('');
+      try {
+        const data = await api.get<any>('/lecturer/dashboard');
+        setCourses(data?.courses || []);
+        setUpcomingClasses(data?.upcomingClasses || []);
+        setRecentActivities(data?.recentActivities || []);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Gagal memuat dashboard dosen');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    load();
   }, []);
-
-  const { courses, upcomingClasses, recentActivities } = dashboardData;
 
   return (
     <div className="space-y-6">
@@ -93,6 +34,8 @@ export function LecturerDashboard() {
         <h1 className="text-gray-900">Dashboard Dosen</h1>
         <p className="text-gray-600 mt-1">Selamat datang kembali, Prof. Dr. Ahmad Wijaya</p>
       </div>
+      {isLoading && <div className="text-sm text-gray-600">Memuat dashboard dosen...</div>}
+      {error && <div className="text-sm text-red-600">{error}</div>}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -154,7 +97,7 @@ export function LecturerDashboard() {
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-white rounded-lg border border-gray-200">
             <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-gray-900">Kursus Saya</h2>
+              <h2 className="text-gray-900">Kursus</h2>
             </div>
             <div className="p-6">
               <div className="space-y-4">
@@ -196,6 +139,11 @@ export function LecturerDashboard() {
                     </div>
                   </div>
                 ))}
+                {!isLoading && !error && courses.length === 0 && (
+                  <div className="p-4 border border-dashed border-gray-300 rounded-lg text-sm text-gray-500">
+                    Belum ada kursus untuk dosen.
+                  </div>
+                )}
               </div>
             </div>
           </div>

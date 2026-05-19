@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Search, Database, Users, BookOpen, Calendar, ChevronRight, Eye, Plus, Edit2, Trash2, X } from 'lucide-react';
+import { Search, Database, Users, BookOpen, Calendar, ChevronRight, Eye, Plus, Upload, Edit2, Trash2, X } from 'lucide-react';
 import { api } from '../../../services/api';
-import { DeleteClassModal } from './DeleteClassModal';
 
 interface Class {
   id: number;
@@ -37,17 +36,73 @@ export function ClassData() {
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
   const [filterAcademicYear, setFilterAcademicYear] = useState<string>('all');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [editingClass, setEditingClass] = useState<Class | null>(null);
-  const [classToDelete, setClassToDelete] = useState<Class | null>(null);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [studentSearchQuery, setStudentSearchQuery] = useState('');
-  const [classData, setClassData] = useState<Class[]>([]);
-
-  useEffect(() => {
-    api.get<Class[]>('/admin/classes')
-      .then(setClassData)
-      .catch((error) => console.error('Failed to load classes:', error));
-  }, []);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [classData, setClassData] = useState<Class[]>([
+    {
+      id: 1,
+      code: 'A1',
+      name: 'Pemrograman Dasar',
+      academicYear: '2024/2025',
+      assistant: 'Ahmad Fauzi',
+      schedule: 'Senin, 08:00 - 10:00',
+      room: 'Lab 301',
+      totalStudents: 35,
+      capacity: 40,
+      students: [1, 2, 3, 4, 5]
+    },
+    {
+      id: 2,
+      code: 'A2',
+      name: 'Struktur Data',
+      academicYear: '2024/2025',
+      assistant: 'Siti Nurhaliza',
+      schedule: 'Selasa, 10:00 - 12:00',
+      room: 'Lab 302',
+      totalStudents: 38,
+      capacity: 40,
+      students: [6, 7]
+    },
+    {
+      id: 3,
+      code: 'B1',
+      name: 'Basis Data',
+      academicYear: '2024/2025',
+      assistant: 'Budi Setiawan',
+      schedule: 'Rabu, 13:00 - 15:00',
+      room: 'Lab 303',
+      totalStudents: 32,
+      capacity: 40,
+      students: []
+    },
+    {
+      id: 4,
+      code: 'B2',
+      name: 'Pemrograman Web',
+      academicYear: '2024/2025',
+      assistant: 'Dewi Kartika',
+      schedule: 'Kamis, 08:00 - 10:00',
+      room: 'Lab 304',
+      totalStudents: 40,
+      capacity: 40,
+      students: []
+    },
+    {
+      id: 5,
+      code: 'C1',
+      name: 'Kecerdasan Buatan',
+      academicYear: '2024/2025',
+      assistant: 'Eko Prasetyo',
+      schedule: 'Jumat, 10:00 - 12:00',
+      room: 'Lab 305',
+      totalStudents: 28,
+      capacity: 35,
+      students: []
+    },
+  ]);
 
   const [formData, setFormData] = useState<ClassFormData>({
     name: '',
@@ -57,12 +112,58 @@ export function ClassData() {
     students: []
   });
 
-  const [allStudents, setAllStudents] = useState<Student[]>([]);
+  const allStudents: Student[] = [
+    { id: 1, nim: '210101001', name: 'Ahmad Fauzi', email: 'ahmad.fauzi@mail.com', status: 'Aktif' },
+    { id: 2, nim: '210101002', name: 'Siti Nurhaliza', email: 'siti.nur@mail.com', status: 'Aktif' },
+    { id: 3, nim: '210101003', name: 'Budi Setiawan', email: 'budi.s@mail.com', status: 'Aktif' },
+    { id: 4, nim: '210101004', name: 'Dewi Kartika', email: 'dewi.k@mail.com', status: 'Aktif' },
+    { id: 5, nim: '210101005', name: 'Eko Prasetyo', email: 'eko.p@mail.com', status: 'Aktif' },
+    { id: 6, nim: '210101006', name: 'Fitri Handayani', email: 'fitri.h@mail.com', status: 'Aktif' },
+    { id: 7, nim: '210101007', name: 'Gunawan Wijaya', email: 'gunawan.w@mail.com', status: 'Aktif' },
+    { id: 8, nim: '210101008', name: 'Hendra Kusuma', email: 'hendra.k@mail.com', status: 'Aktif' },
+    { id: 9, nim: '210101009', name: 'Indah Permata', email: 'indah.p@mail.com', status: 'Aktif' },
+    { id: 10, nim: '210101010', name: 'Joko Widodo', email: 'joko.w@mail.com', status: 'Aktif' },
+  ];
 
   useEffect(() => {
-    api.get<Student[]>('/admin/class-students')
-      .then(setAllStudents)
-      .catch((error) => console.error('Failed to load class students:', error));
+    const load = async () => {
+      setIsLoading(true);
+      setError('');
+      try {
+        const [classes, students] = await Promise.all([
+          api.get<any[]>('/admin/classes'),
+          api.get<any[]>('/admin/students'),
+        ]);
+        setClassData((classes || []).map((cls) => ({
+          id: cls.id,
+          code: cls.code || '-',
+          name: cls.name || '-',
+          academicYear: cls.academicYear || '-',
+          assistant: cls.assistant || '-',
+          schedule: cls.schedule || '-',
+          room: cls.room || '-',
+          totalStudents: cls.totalStudents || 0,
+          capacity: cls.capacity || 0,
+          students: cls.students || [],
+        })));
+        // overwrite local student list for detail mode by mutating reference variable-like via closure fallback not possible.
+        // keep current static list if endpoint empty.
+        if ((students || []).length > 0) {
+          (allStudents as Student[]).splice(0, allStudents.length, ...(students || []).map((s) => ({
+            id: s.id,
+            nim: s.studentId || s.nim || '-',
+            name: s.name || '-',
+            email: s.email || '-',
+            status: s.status || 'Aktif',
+          })));
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Gagal memuat data kelas');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    load();
   }, []);
 
   const filteredClasses = classData.filter(cls => {
@@ -77,7 +178,6 @@ export function ClassData() {
   });
 
   const getCapacityColor = (current: number, max: number) => {
-    if (max <= 0) return 'text-green-600';
     const percentage = (current / max) * 100;
     if (percentage >= 90) return 'text-red-600';
     if (percentage >= 70) return 'text-yellow-600';
@@ -108,36 +208,34 @@ export function ClassData() {
     setShowAddModal(true);
   };
 
-  const handleDeleteClass = (cls: Class) => {
-    setClassToDelete(cls);
-    setShowDeleteModal(true);
+  const handleDeleteClass = (id: number) => {
+    if (window.confirm('Apakah Anda yakin ingin menghapus kelas ini?')) {
+      setClassData(classData.filter(cls => cls.id !== id));
+    }
   };
 
-  const handleConfirmDeleteClass = async () => {
-    if (!classToDelete) return;
-    await api.delete(`/admin/classes/${classToDelete.id}`);
-    setClassData(classData.filter(cls => cls.id !== classToDelete.id));
-    setClassToDelete(null);
-    setShowDeleteModal(false);
-  };
-
-  const handleSubmitClass = async (e: React.FormEvent) => {
+  const handleSubmitClass = (e: React.FormEvent) => {
     e.preventDefault();
     
     if (editingClass) {
-      const updated = await api.put<Class>(`/admin/classes/${editingClass.id}`, {
-        ...editingClass,
-        name: formData.name,
-        code: formData.code,
-        academicYear: formData.academicYear,
-        capacity: parseInt(formData.capacity),
-        students: formData.students,
-      });
+      // Update existing class
       setClassData(classData.map(cls => 
-        cls.id === editingClass.id ? updated : cls
+        cls.id === editingClass.id 
+          ? {
+              ...cls,
+              name: formData.name,
+              code: formData.code,
+              academicYear: formData.academicYear,
+              capacity: parseInt(formData.capacity),
+              students: formData.students,
+              totalStudents: formData.students.length
+            }
+          : cls
       ));
     } else {
-      const newClass = await api.post<Class>('/admin/classes', {
+      // Add new class
+      const newClass: Class = {
+        id: Math.max(...classData.map(c => c.id), 0) + 1,
         name: formData.name,
         code: formData.code,
         academicYear: formData.academicYear,
@@ -146,7 +244,8 @@ export function ClassData() {
         room: '-',
         capacity: parseInt(formData.capacity),
         students: formData.students,
-      });
+        totalStudents: formData.students.length
+      };
       setClassData([...classData, newClass]);
     }
     
@@ -251,6 +350,8 @@ export function ClassData() {
 
   return (
     <div className="space-y-6">
+      {isLoading && <div className="text-sm text-gray-600">Memuat data kelas...</div>}
+      {error && <div className="text-sm text-red-600">{error}</div>}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -258,6 +359,13 @@ export function ClassData() {
           <p className="text-gray-600 mt-1">Kelola informasi kelas dan daftar mahasiswa</p>
         </div>
         <div className="flex gap-3">
+          <button
+            onClick={() => setShowImportModal(true)}
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-white text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
+          >
+            <Upload className="w-5 h-5" />
+            <span>Import Data</span>
+          </button>
           <button
             onClick={handleAddClass}
             className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -387,7 +495,7 @@ export function ClassData() {
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleDeleteClass(cls)}
+                          onClick={() => handleDeleteClass(cls.id)}
                           className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                           title="Hapus"
                         >
@@ -550,17 +658,68 @@ export function ClassData() {
         </div>
       )}
 
+      {/* Import Data Modal */}
+      {showImportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+              <h2 className="text-xl text-gray-900 font-semibold">Import Data Kelas</h2>
+              <button
+                onClick={() => setShowImportModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
 
-      <DeleteClassModal
-        isOpen={showDeleteModal}
-        onClose={() => {
-          setShowDeleteModal(false);
-          setClassToDelete(null);
-        }}
-        onConfirm={handleConfirmDeleteClass}
-        className={classToDelete?.name || ''}
-        classCode={classToDelete?.code || ''}
-      />
+            <div className="p-6 space-y-4">
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-sm text-gray-600 mb-2">
+                  Drag & drop file Excel atau klik untuk browse
+                </p>
+                <input
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  className="hidden"
+                  id="file-upload"
+                />
+                <label
+                  htmlFor="file-upload"
+                  className="inline-block px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 cursor-pointer transition-colors"
+                >
+                  Pilih File
+                </label>
+              </div>
+
+              <div className="bg-blue-50 rounded-lg p-4">
+                <p className="text-sm text-gray-700 mb-2">
+                  <span className="font-medium">Format file:</span>
+                </p>
+                <ul className="text-sm text-gray-600 space-y-1 list-disc list-inside">
+                  <li>File Excel (.xlsx, .xls) atau CSV</li>
+                  <li>Kolom: Nama Kelas, Kode, Asisten, Jadwal, Ruangan, Kapasitas</li>
+                  <li>Maksimal 100 baris data</li>
+                </ul>
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setShowImportModal(false)}
+                  className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Import
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

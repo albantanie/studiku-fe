@@ -12,13 +12,23 @@ export function Courses({ selectedCourseId, onClearSelection }: CoursesProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [academicYear, setAcademicYear] = useState('2025/2026');
   const [selectedCourse, setSelectedCourse] = useState<any>(null);
-
   const [enrolledCourses, setEnrolledCourses] = useState<any[]>([]);
-
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
   useEffect(() => {
-    api.get<typeof enrolledCourses>('/student/courses')
-      .then(setEnrolledCourses)
-      .catch((error) => console.error('Failed to load courses:', error));
+    const load = async () => {
+      setIsLoading(true);
+      setError('');
+      try {
+        const data = await api.get<any[]>('/student/courses');
+        setEnrolledCourses(data || []);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Gagal memuat kursus');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    load();
   }, []);
 
   // Auto-select course if selectedCourseId is provided
@@ -30,7 +40,7 @@ export function Courses({ selectedCourseId, onClearSelection }: CoursesProps) {
         onClearSelection();
       }
     }
-  }, [selectedCourseId, enrolledCourses]);
+  }, [selectedCourseId]);
 
   const filteredCourses = enrolledCourses.filter((course) =>
     course.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -77,7 +87,14 @@ export function Courses({ selectedCourseId, onClearSelection }: CoursesProps) {
       </div>
 
       {/* Courses Grid */}
+      {isLoading && <div className="text-sm text-gray-600">Memuat kursus...</div>}
+      {error && <div className="text-sm text-red-600">{error}</div>}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-5">
+        {!isLoading && !error && filteredCourses.length === 0 && (
+          <div className="col-span-full bg-white rounded-xl border border-dashed border-gray-300 p-8 text-center text-sm text-gray-500">
+            Belum ada kursus yang diikuti.
+          </div>
+        )}
         {filteredCourses.map((course) => (
           <div
             key={course.id}

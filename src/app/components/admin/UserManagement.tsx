@@ -7,14 +7,22 @@ import { api } from '../../../services/api';
 
 export function UserManagement() {
   const [activeTab, setActiveTab] = useState<'students' | 'lecturers' | 'assistants'>('students');
-
-  const iconMap = { graduation: GraduationCap, users: Users, userCog: UserCog };
-  const [tabs, setTabs] = useState<any[]>([]);
+  const [tabs, setTabs] = useState<Array<{ id: 'students' | 'lecturers' | 'assistants'; label: string; icon: any }>>([
+    { id: 'students', label: 'Mahasiswa', icon: GraduationCap },
+    { id: 'lecturers', label: 'Dosen', icon: Users },
+    { id: 'assistants', label: 'Asisten Laboratorium', icon: UserCog },
+  ]);
 
   useEffect(() => {
-    api.get<Array<{ id: 'students' | 'lecturers' | 'assistants'; label: string; icon: keyof typeof iconMap }>>('/admin/user-tabs')
-      .then((data) => setTabs(data.map((tab) => ({ ...tab, icon: iconMap[tab.icon] }))))
-      .catch((error) => console.error('Failed to load user tabs:', error));
+    api.get<any[]>('/admin/user-tabs')
+      .then((data) => {
+        const iconMap: Record<string, any> = { students: GraduationCap, lecturers: Users, assistants: UserCog };
+        const mapped = (data || [])
+          .map((x: any) => ({ id: x.id, label: x.label, icon: iconMap[x.id] || Users }))
+          .filter((x: any) => x.id === 'students' || x.id === 'lecturers' || x.id === 'assistants');
+        if (mapped.length > 0) setTabs(mapped as any);
+      })
+      .catch(() => {});
   }, []);
 
   return (

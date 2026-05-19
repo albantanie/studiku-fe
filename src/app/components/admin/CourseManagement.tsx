@@ -29,12 +29,40 @@ export function CourseManagement() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [courseToDelete, setCourseToDelete] = useState<Course | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
   const [courses, setCourses] = useState<Course[]>([]);
 
   useEffect(() => {
-    api.get<Course[]>('/admin/courses')
-      .then(setCourses)
-      .catch((error) => console.error('Failed to load admin courses:', error));
+    const load = async () => {
+      setIsLoading(true);
+      setError('');
+      try {
+        const data = await api.get<any[]>('/admin/courses');
+        setCourses((data || []).map((c) => ({
+          id: c.id,
+          name: c.name,
+          instructor: c.instructor || '-',
+          assistant: c.assistant || '-',
+          studyProgram: c.studyProgram || '-',
+          academicYear: c.academicYear || '-',
+          classCode: c.classCode || '-',
+          status: c.status || 'Aktif',
+          day: c.day || '-',
+          startTime: c.startTime || '-',
+          endTime: c.endTime || '-',
+          room: c.room || '-',
+          sessions: c.sessions || 0,
+          credits: c.credits || 0,
+          students: c.students || 0,
+        })));
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Gagal memuat kursus admin');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    load();
   }, []);
 
   const filteredCourses = courses.filter(course => {
@@ -62,15 +90,28 @@ export function CourseManagement() {
 
   const handleSaveCourse = async (courseData: Course) => {
     if (selectedCourse) {
-      const updated = await api.put<Course>(`/admin/courses/${selectedCourse.id}`, { ...courseData, id: selectedCourse.id, students: selectedCourse.students });
-      setCourses(courses.map(c => c.id === selectedCourse.id ? updated : c));
+      await api.put(`/admin/courses/${selectedCourse.id}`, courseData);
     } else {
-      const newCourse = await api.post<Course>('/admin/courses', {
-        ...courseData,
-        students: 0
-      });
-      setCourses([...courses, newCourse]);
+      await api.post('/admin/courses', courseData);
     }
+    const data = await api.get<any[]>('/admin/courses');
+    setCourses((data || []).map((c) => ({
+      id: c.id,
+      name: c.name,
+      instructor: c.instructor || '-',
+      assistant: c.assistant || '-',
+      studyProgram: c.studyProgram || '-',
+      academicYear: c.academicYear || '-',
+      classCode: c.classCode || '-',
+      status: c.status || 'Aktif',
+      day: c.day || '-',
+      startTime: c.startTime || '-',
+      endTime: c.endTime || '-',
+      room: c.room || '-',
+      sessions: c.sessions || 0,
+      credits: c.credits || 0,
+      students: c.students || 0,
+    })));
     setIsAddEditModalOpen(false);
     setSelectedCourse(null);
   };
@@ -78,20 +119,61 @@ export function CourseManagement() {
   const handleConfirmDelete = async () => {
     if (courseToDelete) {
       await api.delete(`/admin/courses/${courseToDelete.id}`);
-      setCourses(courses.filter(c => c.id !== courseToDelete.id));
+      const data = await api.get<any[]>('/admin/courses');
+      setCourses((data || []).map((c) => ({
+        id: c.id,
+        name: c.name,
+        instructor: c.instructor || '-',
+        assistant: c.assistant || '-',
+        studyProgram: c.studyProgram || '-',
+        academicYear: c.academicYear || '-',
+        classCode: c.classCode || '-',
+        status: c.status || 'Aktif',
+        day: c.day || '-',
+        startTime: c.startTime || '-',
+        endTime: c.endTime || '-',
+        room: c.room || '-',
+        sessions: c.sessions || 0,
+        credits: c.credits || 0,
+        students: c.students || 0,
+      })));
       setIsDeleteModalOpen(false);
       setCourseToDelete(null);
     }
   };
 
+  // Statistics
+  const stats = [
+    {
+      label: 'Total Kursus',
+      value: courses.length,
+      icon: BookOpen,
+      color: 'bg-blue-500'
+    },
+    {
+      label: 'Kursus Aktif',
+      value: courses.filter(c => c.status === 'Aktif').length,
+      icon: BarChart3,
+      color: 'bg-green-500'
+    },
+    {
+      label: 'Total Mahasiswa',
+      value: courses.reduce((sum, c) => sum + c.students, 0),
+      icon: Users,
+      color: 'bg-purple-500'
+    }
+  ];
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
+      <div>
           <h1 className="text-gray-900">Kelola Kursus</h1>
           <p className="text-gray-600 mt-1">Kelola kursus, materi, dan pengajar</p>
-        </div>
+      </div>
+      {isLoading && <div className="text-sm text-gray-600">Memuat kursus...</div>}
+      {error && <div className="text-sm text-red-600">{error}</div>}
         <button 
           onClick={handleAddCourse}
           className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -103,39 +185,19 @@ export function CourseManagement() {
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Total Kursus</p>
-              <p className="text-2xl text-gray-900 mt-1">{courses.length}</p>
-            </div>
-            <div className="bg-blue-500 p-3 rounded-lg">
-              <BookOpen className="w-6 h-6 text-white" />
-            </div>
-          </div>
-        </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Kursus Aktif</p>
-              <p className="text-2xl text-gray-900 mt-1">{courses.filter(c => c.status === 'Aktif').length}</p>
-            </div>
-            <div className="bg-green-500 p-3 rounded-lg">
-              <BarChart3 className="w-6 h-6 text-white" />
+        {stats.map((stat, index) => (
+          <div key={index} className="bg-white rounded-lg border border-gray-200 p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">{stat.label}</p>
+                <p className="text-2xl text-gray-900 mt-1">{stat.value}</p>
+              </div>
+              <div className={`${stat.color} p-3 rounded-lg`}>
+                <stat.icon className="w-6 h-6 text-white" />
+              </div>
             </div>
           </div>
-        </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Total Mahasiswa</p>
-              <p className="text-2xl text-gray-900 mt-1">{courses.reduce((sum, c) => sum + c.students, 0)}</p>
-            </div>
-            <div className="bg-purple-500 p-3 rounded-lg">
-              <Users className="w-6 h-6 text-white" />
-            </div>
-          </div>
-        </div>
+        ))}
       </div>
 
       {/* Filters */}
@@ -259,11 +321,19 @@ export function CourseManagement() {
         </div>
       )}
 
-      {/* Results Info */}
+      {/* Pagination */}
       {filteredCourses.length > 0 && (
-        <div className="px-4 py-3 bg-white border border-gray-200 rounded-lg">
+        <div className="flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg">
           <div className="text-sm text-gray-600">
             Menampilkan <span className="text-gray-900">{filteredCourses.length}</span> dari <span className="text-gray-900">{courses.length}</span> kursus
+          </div>
+          <div className="flex gap-2">
+            <button className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+              Sebelumnya
+            </button>
+            <button className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+              Selanjutnya
+            </button>
           </div>
         </div>
       )}

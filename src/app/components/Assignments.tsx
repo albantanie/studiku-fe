@@ -6,13 +6,24 @@ import { api } from '../../services/api';
 export function Assignments() {
   const [filter, setFilter] = useState('all');
   const [selectedAssignment, setSelectedAssignment] = useState<number | null>(null);
-
   const [assignments, setAssignments] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    api.get<typeof assignments>('/student/assignments')
-      .then(setAssignments)
-      .catch((error) => console.error('Failed to load assignments:', error));
+    const load = async () => {
+      setIsLoading(true);
+      setError('');
+      try {
+        const data = await api.get<any[]>('/student/assignments');
+        setAssignments(data || []);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Gagal memuat tugas');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    load();
   }, []);
 
   const filteredAssignments = assignments.filter((assignment) => {
@@ -96,7 +107,14 @@ export function Assignments() {
       </div>
 
       {/* Assignments List */}
+      {isLoading && <div className="text-sm text-gray-600">Memuat tugas...</div>}
+      {error && <div className="text-sm text-red-600">{error}</div>}
       <div className="space-y-4">
+        {!isLoading && !error && filteredAssignments.length === 0 && (
+          <div className="bg-white rounded-xl border border-dashed border-gray-300 p-8 text-center text-sm text-gray-500">
+            Belum ada tugas.
+          </div>
+        )}
         {filteredAssignments.map((assignment) => (
           <div
             key={assignment.id}

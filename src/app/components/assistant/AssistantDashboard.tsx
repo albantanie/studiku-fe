@@ -3,112 +3,31 @@ import { Beaker, Users, CheckSquare, Clock, Calendar, AlertCircle } from 'lucide
 import { api } from '../../../services/api';
 
 export function AssistantDashboard() {
-  const [dashboardData, setDashboardData] = useState({
-    practicalSessions: [
-    {
-      id: 1,
-      course: 'Pemrograman Dasar',
-      class: 'TIF-A',
-      lab: 'Lab 301',
-      schedule: 'Senin, 14:00 - 16:00',
-      students: 35,
-      attendance: 32,
-      topic: 'Praktikum Array dan Matrix',
-    },
-    {
-      id: 2,
-      course: 'Struktur Data',
-      class: 'TIF-B',
-      lab: 'Lab 302',
-      schedule: 'Rabu, 14:00 - 16:00',
-      students: 38,
-      attendance: 35,
-      topic: 'Implementasi Linked List',
-    },
-    {
-      id: 3,
-      course: 'Basis Data',
-      class: 'TIF-C',
-      lab: 'Lab 303',
-      schedule: 'Jumat, 14:00 - 16:00',
-      students: 32,
-      attendance: 30,
-      topic: 'Query SQL Lanjutan',
-    },
-    ],
-
-    pendingTasks: [
-    {
-      id: 1,
-      task: 'Verifikasi laporan praktikum Pemrograman Dasar',
-      submitted: 28,
-      total: 35,
-      deadline: '2 hari lagi',
-    },
-    {
-      id: 2,
-      task: 'Input nilai praktikum Struktur Data',
-      submitted: 35,
-      total: 38,
-      deadline: '3 hari lagi',
-    },
-    {
-      id: 3,
-      task: 'Persiapan modul praktikum Basis Data minggu depan',
-      submitted: 0,
-      total: 1,
-      deadline: '5 hari lagi',
-    },
-    ],
-
-    upcomingPracticals: [
-    {
-      id: 1,
-      course: 'Pemrograman Dasar',
-      class: 'TIF-A',
-      time: 'Senin, 14:00 - 16:00',
-      lab: 'Lab 301',
-      topic: 'Praktikum Array dan Matrix',
-    },
-    {
-      id: 2,
-      course: 'Struktur Data',
-      class: 'TIF-B',
-      time: 'Rabu, 14:00 - 16:00',
-      lab: 'Lab 302',
-      topic: 'Implementasi Linked List',
-    },
-    ],
-
-    recentActivities: [
-    {
-      id: 1,
-      message: '8 mahasiswa mengumpulkan laporan praktikum',
-      time: '1 jam lalu',
-      type: 'submission',
-    },
-    {
-      id: 2,
-      message: 'Presensi Lab 301 telah dicatat (32/35 hadir)',
-      time: '3 jam lalu',
-      type: 'attendance',
-    },
-    {
-      id: 3,
-      message: 'Modul praktikum minggu depan telah diunggah',
-      time: '1 hari lalu',
-      type: 'module',
-    },
-    ],
-  });
+  const [practicalSessions, setPracticalSessions] = useState<any[]>([]);
+  const [pendingTasks, setPendingTasks] = useState<any[]>([]);
+  const [upcomingPracticals, setUpcomingPracticals] = useState<any[]>([]);
+  const [recentActivities, setRecentActivities] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    api.get<typeof dashboardData>('/assistant/dashboard')
-      .then(setDashboardData)
-      .catch((error) => console.error('Failed to load assistant dashboard:', error));
+    const load = async () => {
+      setIsLoading(true);
+      setError('');
+      try {
+        const data = await api.get<any>('/assistant/dashboard');
+        setPracticalSessions(data?.practicalSessions || []);
+        setPendingTasks(data?.pendingTasks || []);
+        setUpcomingPracticals(data?.upcomingPracticals || []);
+        setRecentActivities(data?.recentActivities || []);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Gagal memuat dashboard aslab');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    load();
   }, []);
-
-  const { practicalSessions, pendingTasks, upcomingPracticals, recentActivities } = dashboardData;
 
   return (
     <div className="space-y-6">
@@ -117,6 +36,8 @@ export function AssistantDashboard() {
         <h1 className="text-gray-900">Dashboard Asisten Laboratorium</h1>
         <p className="text-gray-600 mt-1">Selamat datang, Andi Pratama - Asisten Lab Teknik Informatika</p>
       </div>
+      {isLoading && <div className="text-sm text-gray-600">Memuat dashboard aslab...</div>}
+      {error && <div className="text-sm text-red-600">{error}</div>}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -209,6 +130,11 @@ export function AssistantDashboard() {
                     </div>
                   </div>
                 ))}
+                {!isLoading && !error && practicalSessions.length === 0 && (
+                  <div className="p-4 border border-dashed border-gray-300 rounded-lg text-sm text-gray-500">
+                    Belum ada sesi praktikum.
+                  </div>
+                )}
               </div>
             </div>
           </div>

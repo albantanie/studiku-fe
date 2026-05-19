@@ -38,7 +38,13 @@ export function AddEditStudentModal({ isOpen, onClose, onAddEdit, student, mode 
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showPassword, setShowPassword] = useState(false);
-  const [programs, setPrograms] = useState<any[]>([]);
+  const [programs, setPrograms] = useState<string[]>([]);
+
+  useEffect(() => {
+    api.get<any[]>('/admin/student-programs')
+      .then((data) => setPrograms((data || []).map((x: any) => x.label || x.value || String(x))))
+      .catch(() => setPrograms([]));
+  }, []);
 
   useEffect(() => {
     if (student && mode === 'edit') {
@@ -58,13 +64,6 @@ export function AddEditStudentModal({ isOpen, onClose, onAddEdit, student, mode 
     }
     setErrors({});
   }, [student, mode, isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    api.get<string[]>('/admin/student-programs')
-      .then(setPrograms)
-      .catch((error) => console.error('Failed to load student programs:', error));
-  }, [isOpen]);
 
   if (!isOpen) return null;
 

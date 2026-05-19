@@ -40,6 +40,7 @@ export function ClassDetailModal({ isOpen, onClose, classData }: ClassDetailModa
     : 0;
 
   const handleExportStudents = () => {
+    // Mock export functionality
     const csvContent = `NIM,Nama,Email\n${classData.students.map(s => `${s.nim},${s.name},${s.email}`).join('\n')}`;
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);

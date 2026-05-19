@@ -1,6 +1,5 @@
 import { Calendar, CheckCircle2, AlertCircle, ArrowLeft, Upload, FileText, X } from 'lucide-react';
 import { useState } from 'react';
-import { api } from '../../services/api';
 
 interface AssignmentDetailProps {
   assignment: {
@@ -19,19 +18,9 @@ interface AssignmentDetailProps {
 export function AssignmentDetail({ assignment, onBack }: AssignmentDetailProps) {
   const [answer, setAnswer] = useState<string>('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [submitted, setSubmitted] = useState(assignment.status === 'submitted' || assignment.status === 'graded');
   
-  const isSubmitted = submitted;
+  const isSubmitted = assignment.status === 'submitted' || assignment.status === 'graded';
   const isGraded = assignment.status === 'graded';
-
-  const handleSubmitAssignment = async () => {
-    if (!answer.trim()) return;
-    await api.put(`/student/assignments/${assignment.id}/submit`, {
-      answer,
-      fileName: selectedFile?.name || '',
-    });
-    setSubmitted(true);
-  };
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -187,7 +176,6 @@ export function AssignmentDetail({ assignment, onBack }: AssignmentDetailProps) 
         {/* Submit Button */}
         {!isSubmitted && (
           <button
-            onClick={handleSubmitAssignment}
             disabled={!answer.trim()}
             className={`w-full py-3 rounded-lg transition-colors ${
               answer.trim()

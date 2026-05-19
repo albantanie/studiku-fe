@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { BookOpen, Search, Clock, GraduationCap, Users, ArrowLeft, Calendar, FileText, CheckCircle, XCircle, AlertCircle, AlertTriangle, Trash2, X, Eye, Edit } from 'lucide-react';
+import { BookOpen, Search, Clock, GraduationCap, Users, ArrowLeft, Calendar, FileText, Upload, Plus, CheckCircle, XCircle, AlertCircle, Download, Trash2, X, Eye, Edit } from 'lucide-react';
+import { getSubmissionDownloadUrl } from '../../../services/fileService';
 import { api } from '../../../services/api';
 
 interface Course {
@@ -70,6 +71,7 @@ interface Submission {
   fileSize: string;
   score: number | null;
   feedback: string;
+  answerText: string;
 }
 
 export function AssistantPracticals() {
@@ -78,62 +80,143 @@ export function AssistantPracticals() {
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [activeTab, setActiveTab] = useState<'sesi' | 'tugas'>('sesi');
+  const [showAddAssignmentModal, setShowAddAssignmentModal] = useState(false);
+  const [showUploadMaterialModal, setShowUploadMaterialModal] = useState(false);
   const [showSubmissionsModal, setShowSubmissionsModal] = useState(false);
   const [showGradingModal, setShowGradingModal] = useState(false);
   const [showAssistantAttendanceModal, setShowAssistantAttendanceModal] = useState(false);
   const [showStudentAttendanceModal, setShowStudentAttendanceModal] = useState(false);
-  const [showDeleteMaterialModal, setShowDeleteMaterialModal] = useState(false);
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
-  const [materialToDelete, setMaterialToDelete] = useState<Material | null>(null);
-  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
+  const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
+  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([
+    { id: 1, nim: '210101001', name: 'Ahmad Fauzi', status: 'Hadir', time: '08:05' },
+    { id: 2, nim: '210101002', name: 'Siti Nurhaliza', status: 'Hadir', time: '08:03' },
+    { id: 3, nim: '210101003', name: 'Budi Santoso', status: 'Hadir', time: '08:10' },
+    { id: 4, nim: '210101004', name: 'Dewi Lestari', status: 'Izin', time: '-' },
+    { id: 5, nim: '210101005', name: 'Eko Prasetyo', status: 'Hadir', time: '08:02' },
+    { id: 6, nim: '210101006', name: 'Fitri Handayani', status: 'Hadir', time: '08:07' },
+    { id: 7, nim: '210101007', name: 'Gani Wijaya', status: 'Tidak Hadir', time: '-' },
+    { id: 8, nim: '210101008', name: 'Hesti Wulandari', status: 'Hadir', time: '08:04' },
+  ]);
   const [assistantAttendanceStatus, setAssistantAttendanceStatus] = useState<'Hadir' | 'Tidak Hadir' | ''>('Hadir');
   const [assistantAttendanceTime, setAssistantAttendanceTime] = useState('08:00');
-  const [gradingScore, setGradingScore] = useState('');
-  const [gradingFeedback, setGradingFeedback] = useState('');
+  const [isLoadingCourses, setIsLoadingCourses] = useState(true);
+  const [coursesError, setCoursesError] = useState('');
 
   // Kursus yang diajar oleh asisten lab
-  const [courses, setCourses] = useState<Course[]>([]);
-
-  const [sessions, setSessions] = useState<Session[]>([]);
-
-  const [materials, setMaterials] = useState<Material[]>([]);
-
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
-
-  const [submissions, setSubmissions] = useState<Submission[]>([]);
-
-  const handleDeleteMaterial = (material: Material) => {
-    setMaterialToDelete(material);
-    setShowDeleteMaterialModal(true);
-  };
-
-  const handleConfirmDeleteMaterial = async () => {
-    if (!materialToDelete) return;
-    await api.delete(`/assistant/materials/${materialToDelete.id}`);
-    setMaterials(materials.filter((material) => material.id !== materialToDelete.id));
-    setMaterialToDelete(null);
-    setShowDeleteMaterialModal(false);
-  };
+  const [courses, setCourses] = useState<Course[]>([
+    {
+      id: 1,
+      courseCode: 'TIF101',
+      name: 'Pemrograman Dasar',
+      lecturer: 'Dr. Ahmad Rahman',
+      class: 'TIF-A',
+      lab: 'Lab 301',
+      schedule: {
+        day: 'Senin',
+        startTime: '14:00',
+        endTime: '16:00',
+      },
+      semester: 'Ganjil',
+      academicYear: '2025/2026',
+      students: 35,
+      attendance: {
+        present: 12,
+        total: 14,
+        percentage: 86,
+      },
+      color: 'bg-blue-500',
+    },
+    {
+      id: 2,
+      courseCode: 'TIF102',
+      name: 'Struktur Data',
+      lecturer: 'Prof. Siti Nurhaliza',
+      class: 'TIF-B',
+      lab: 'Lab 302',
+      schedule: {
+        day: 'Rabu',
+        startTime: '14:00',
+        endTime: '16:00',
+      },
+      semester: 'Ganjil',
+      academicYear: '2025/2026',
+      students: 38,
+      attendance: {
+        present: 13,
+        total: 14,
+        percentage: 93,
+      },
+      color: 'bg-blue-500',
+    },
+    {
+      id: 3,
+      courseCode: 'TIF201',
+      name: 'Basis Data',
+      lecturer: 'Ir. Budi Hartono',
+      class: 'TIF-C',
+      lab: 'Lab 303',
+      schedule: {
+        day: 'Jumat',
+        startTime: '14:00',
+        endTime: '16:00',
+      },
+      semester: 'Ganjil',
+      academicYear: '2025/2026',
+      students: 32,
+      attendance: {
+        present: 14,
+        total: 14,
+        percentage: 100,
+      },
+      color: 'bg-blue-500',
+    },
+  ]);
 
   useEffect(() => {
-    api.get<{
-      courses: Course[];
-      sessions: Session[];
-      materials: Material[];
-      assignments: Assignment[];
-      submissions: Submission[];
-      attendanceRecords: AttendanceRecord[];
-    }>('/assistant/practicals')
-      .then((data) => {
-        setCourses(data.courses);
-        setSessions(data.sessions);
-        setMaterials(data.materials);
-        setAssignments(data.assignments);
-        setSubmissions(data.submissions);
-        setAttendanceRecords(data.attendanceRecords);
-      })
-      .catch((error) => console.error('Failed to load assistant practicals:', error));
+    const load = async () => {
+      setIsLoadingCourses(true);
+      setCoursesError('');
+      try {
+        const data = await api.get<any[]>('/admin/courses');
+        setCourses((data || []).map((c) => ({
+          id: c.id,
+          courseCode: c.classCode || c.code || '-',
+          name: c.name,
+          lecturer: c.instructor || '-',
+          class: c.classCode || '-',
+          lab: c.room || '-',
+          schedule: {
+            day: c.day || '-',
+            startTime: c.startTime || '-',
+            endTime: c.endTime || '-',
+          },
+          semester: 'Ganjil',
+          academicYear: c.academicYear || '-',
+          students: c.students || 0,
+          attendance: {
+            present: c.attendancePresent || 0,
+            total: c.attendanceTotal || 0,
+            percentage: c.attendanceTotal > 0 ? Math.round((c.attendancePresent || 0) * 100 / c.attendanceTotal) : 0,
+          },
+          color: c.color || 'bg-blue-500',
+        })));
+      } catch (err) {
+        setCoursesError(err instanceof Error ? err.message : 'Gagal memuat kursus aslab');
+      } finally {
+        setIsLoadingCourses(false);
+      }
+    };
+    load();
   }, []);
+
+  const sessions: Session[] = [];
+
+  const materials: Material[] = [];
+
+  const assignments: Assignment[] = [];
+
+  const submissions: Submission[] = [];
 
   const filteredCourses = courses.filter((course) =>
     course.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -160,32 +243,14 @@ export function AssistantPracticals() {
     }
   };
 
-  const handleViewSubmissions = () => {
+  const handleViewSubmissions = (assignment: Assignment) => {
+    setSelectedAssignment(assignment);
     setShowSubmissionsModal(true);
   };
 
   const handleGradeSubmission = (submission: Submission) => {
     setSelectedSubmission(submission);
-    setGradingScore(submission.score?.toString() || '');
-    setGradingFeedback(submission.feedback || '');
     setShowGradingModal(true);
-  };
-
-  const handleSaveGrade = async () => {
-    if (!selectedSubmission || !gradingScore) return;
-    const updated = {
-      ...selectedSubmission,
-      score: Number(gradingScore),
-      feedback: gradingFeedback,
-    };
-    await api.put(`/assistant/submissions/${selectedSubmission.id}/grade`, {
-      score: updated.score,
-      status: 'Disetujui',
-      feedback: updated.feedback,
-    });
-    setSubmissions(submissions.map((submission) => submission.id === updated.id ? updated : submission));
-    setSelectedSubmission(null);
-    setShowGradingModal(false);
   };
 
   const handleUpdateAttendance = (recordId: number, status: 'Hadir' | 'Tidak Hadir' | 'Izin') => {
@@ -268,10 +333,17 @@ export function AssistantPracticals() {
           </div>
         </div>
 
-        {/* Materi */}
+        {/* Upload Materi */}
         <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="mb-4">
+          <div className="flex items-center justify-between mb-4">
             <h3 className="text-gray-900 font-semibold">Materi Praktikum</h3>
+            <button 
+              onClick={() => setShowUploadMaterialModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
+            >
+              <Upload className="w-4 h-4" />
+              Upload Materi
+            </button>
           </div>
           {materials.length > 0 ? (
             <div className="space-y-2">
@@ -285,10 +357,10 @@ export function AssistantPracticals() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleDeleteMaterial(material)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    >
+                    <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                      <Download className="w-4 h-4" />
+                    </button>
+                    <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
@@ -305,8 +377,15 @@ export function AssistantPracticals() {
 
         {/* Berikan Tugas */}
         <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="mb-4">
+          <div className="flex items-center justify-between mb-4">
             <h3 className="text-gray-900 font-semibold">Tugas untuk Sesi Ini</h3>
+            <button 
+              onClick={() => setShowAddAssignmentModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm"
+            >
+              <Plus className="w-4 h-4" />
+              Buat Tugas Baru
+            </button>
           </div>
           {assignments.filter(a => a.sessionNumber === selectedSession.sessionNumber).length > 0 ? (
             <div className="space-y-3">
@@ -328,8 +407,8 @@ export function AssistantPracticals() {
                       <Clock className="w-4 h-4" />
                       <span>Deadline: {assignment.deadline}</span>
                     </div>
-                    <button 
-                      onClick={handleViewSubmissions}
+                    <button
+                      onClick={() => handleViewSubmissions(assignment)}
                       className="text-blue-600 hover:text-blue-700 font-medium"
                     >
                       Lihat Submission
@@ -460,148 +539,56 @@ export function AssistantPracticals() {
           </div>
         </div>
 
-
-        {/* Submissions Modal */}
-        {showSubmissionsModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md">
-            <div className="bg-white rounded-lg shadow-xl max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-              <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-                <div>
-                  <h3 className="text-gray-900 font-semibold">Submission Tugas</h3>
-                  <p className="text-sm text-gray-600 mt-1">Praktikum 1: Implementasi Algoritma Dasar</p>
-                </div>
-                <button
-                  onClick={() => setShowSubmissionsModal(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="flex-1 overflow-y-auto p-6">
-                <div className="space-y-3">
-                  {submissions.map((submission) => (
-                    <div key={submission.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                              <span className="text-blue-600 font-semibold text-sm">
-                                {submission.name.split(' ').map(n => n[0]).join('')}
-                              </span>
-                            </div>
-                            <div>
-                              <p className="text-gray-900 font-medium">{submission.name}</p>
-                              <p className="text-sm text-gray-600">{submission.nim}</p>
-                            </div>
-                          </div>
-                          <div className="ml-13 space-y-1">
-                            <div className="flex items-center gap-2 text-sm text-gray-600">
-                              <FileText className="w-4 h-4" />
-                              <span>{submission.fileName} ({submission.fileSize})</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-sm text-gray-600">
-                              <Clock className="w-4 h-4" />
-                              <span>Submit: {submission.submittedAt}</span>
-                            </div>
-                            {submission.score !== null && (
-                              <div className="flex items-center gap-2">
-                                <span className="inline-flex px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded">
-                                  Nilai: {submission.score}
-                                </span>
-                                {submission.feedback && (
-                                  <span className="text-xs text-gray-600">• {submission.feedback}</span>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => handleGradeSubmission(submission)}
-                            className="px-3 py-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm flex items-center gap-1"
-                          >
-                            <Edit className="w-4 h-4" />
-                            {submission.score !== null ? 'Edit Nilai' : 'Beri Nilai'}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Grading Modal */}
-        {showGradingModal && selectedSubmission && (
+        {/* Upload Material Modal */}
+        {showUploadMaterialModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md">
             <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full">
               <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-                <div>
-                  <h3 className="text-gray-900 font-semibold">Penilaian Tugas</h3>
-                  <p className="text-sm text-gray-600 mt-1">{selectedSubmission.name} - {selectedSubmission.nim}</p>
-                </div>
+                <h3 className="text-gray-900 font-semibold">Upload Materi Praktikum</h3>
                 <button
-                  onClick={() => {
-                    setShowGradingModal(false);
-                    setSelectedSubmission(null);
-                  }}
+                  onClick={() => setShowUploadMaterialModal(false)}
                   className="text-gray-400 hover:text-gray-600"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
               <div className="p-6 space-y-4">
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
-                    <FileText className="w-4 h-4" />
-                    <span>{selectedSubmission.fileName}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Clock className="w-4 h-4" />
-                    <span>Submit: {selectedSubmission.submittedAt}</span>
-                  </div>
-                </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Nilai (0-100)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Judul Materi</label>
                   <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={gradingScore}
-                    onChange={(e) => setGradingScore(e.target.value)}
+                    type="text"
                     className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:outline-none"
-                    placeholder="Masukkan nilai..."
+                    placeholder="Masukkan judul materi..."
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Feedback</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">File Materi</label>
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-500 transition-colors cursor-pointer">
+                    <Upload className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                    <p className="text-sm text-gray-600 mb-1">
+                      <span className="text-blue-600 font-medium">Klik untuk upload</span> atau drag & drop
+                    </p>
+                    <p className="text-xs text-gray-500">PDF, ZIP, PPTX, DOCX (Max. 50MB)</p>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Deskripsi (Opsional)</label>
                   <textarea
-                    rows={4}
-                    value={gradingFeedback}
-                    onChange={(e) => setGradingFeedback(e.target.value)}
+                    rows={3}
                     className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:outline-none"
-                    placeholder="Berikan feedback untuk mahasiswa..."
+                    placeholder="Tambahkan deskripsi materi..."
                   />
                 </div>
               </div>
               <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
                 <button
-                  onClick={() => {
-                    setShowGradingModal(false);
-                    setSelectedSubmission(null);
-                  }}
+                  onClick={() => setShowUploadMaterialModal(false)}
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   Batal
                 </button>
-                <button
-                  onClick={handleSaveGrade}
-                  disabled={!gradingScore}
-                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Simpan Nilai
+                <button className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                  Upload Materi
                 </button>
               </div>
             </div>
@@ -758,36 +745,52 @@ export function AssistantPracticals() {
           </div>
         )}
 
-        {showDeleteMaterialModal && (
+        {/* Add Assignment Modal */}
+        {showAddAssignmentModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md">
-            <div className="bg-white rounded-lg shadow-2xl w-full max-w-md">
-              <div className="p-6 flex items-start gap-4">
-                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
-                  <AlertTriangle className="w-6 h-6 text-red-600" />
+            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full">
+              <div className="p-6 border-b border-gray-200">
+                <h3 className="text-gray-900 font-semibold">Buat Tugas Baru</h3>
+              </div>
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Judul Tugas</label>
+                  <input
+                    type="text"
+                    className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:outline-none"
+                    placeholder="Masukkan judul tugas..."
+                  />
                 </div>
-                <div className="flex-1">
-                  <h3 className="text-lg text-gray-900 mb-2">Hapus Materi</h3>
-                  <p className="text-sm text-gray-600">Apakah Anda yakin ingin menghapus materi <span className="font-semibold text-gray-900">"{materialToDelete?.name}"</span>?</p>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Deskripsi</label>
+                  <textarea
+                    rows={4}
+                    className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:outline-none"
+                    placeholder="Masukkan deskripsi tugas..."
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Deadline</label>
+                  <input
+                    type="datetime-local"
+                    className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:outline-none"
+                  />
                 </div>
               </div>
-              <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
+              <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
                 <button
-                  onClick={() => setShowDeleteMaterialModal(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                  onClick={() => setShowAddAssignmentModal(false)}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   Batal
                 </button>
-                <button
-                  onClick={handleConfirmDeleteMaterial}
-                  className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                >
-                  Hapus Materi
+                <button className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                  Simpan Tugas
                 </button>
               </div>
             </div>
           </div>
         )}
-
       </div>
     );
   }
@@ -906,8 +909,15 @@ export function AssistantPracticals() {
 
             {activeTab === 'tugas' && (
               <div>
-                <div className="mb-4">
+                <div className="flex items-center justify-between mb-4">
                   <h3 className="text-gray-900 font-semibold">Semua Tugas yang Diberikan</h3>
+                  <button 
+                    onClick={() => setShowAddAssignmentModal(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Buat Tugas
+                  </button>
                 </div>
                 
                 {assignments.length > 0 ? (
@@ -940,9 +950,15 @@ export function AssistantPracticals() {
                           <div className="w-full bg-gray-200 rounded-full h-2 mr-4">
                             <div
                               className="bg-green-500 h-2 rounded-full transition-all"
-                              style={{ width: `${assignment.totalStudents > 0 ? (assignment.submittedCount / assignment.totalStudents) * 100 : 0}%` }}
+                              style={{ width: `${(assignment.submittedCount / assignment.totalStudents) * 100}%` }}
                             />
                           </div>
+                          <button
+                            onClick={() => handleViewSubmissions(assignment)}
+                            className="px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors font-medium whitespace-nowrap"
+                          >
+                            Lihat Detail
+                          </button>
                         </div>
                       </div>
                     ))}
@@ -951,7 +967,7 @@ export function AssistantPracticals() {
                   <div className="text-center py-12">
                     <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                     <h3 className="text-gray-900 font-semibold mb-2">Belum Ada Tugas</h3>
-                    <p className="text-gray-600">Belum ada tugas tersedia</p>
+                    <p className="text-gray-600">Klik "Buat Tugas" untuk membuat tugas baru</p>
                   </div>
                 )}
               </div>
@@ -959,6 +975,63 @@ export function AssistantPracticals() {
           </div>
         </div>
 
+        {/* Add Assignment Modal */}
+        {showAddAssignmentModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md">
+            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full">
+              <div className="p-6 border-b border-gray-200">
+                <h3 className="text-gray-900 font-semibold">Buat Tugas Baru</h3>
+              </div>
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Pilih Sesi</label>
+                  <select className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:outline-none">
+                    <option value="">Pilih sesi...</option>
+                    {sessions.map(session => (
+                      <option key={session.id} value={session.id}>
+                        Sesi {session.sessionNumber} - {session.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Judul Tugas</label>
+                  <input
+                    type="text"
+                    className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:outline-none"
+                    placeholder="Masukkan judul tugas..."
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Deskripsi</label>
+                  <textarea
+                    rows={4}
+                    className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:outline-none"
+                    placeholder="Masukkan deskripsi tugas..."
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Deadline</label>
+                  <input
+                    type="datetime-local"
+                    className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+              <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
+                <button
+                  onClick={() => setShowAddAssignmentModal(false)}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Batal
+                </button>
+                <button className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                  Simpan Tugas
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -1027,6 +1100,8 @@ export function AssistantPracticals() {
       </div>
 
       {/* Courses Grid */}
+      {isLoadingCourses && <div className="text-sm text-gray-600">Memuat kursus...</div>}
+      {coursesError && <div className="text-sm text-red-600">{coursesError}</div>}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-5">
         {filteredCourses.map((course) => (
           <div
@@ -1102,6 +1177,166 @@ export function AssistantPracticals() {
           <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
           <h3 className="text-gray-900 font-semibold mb-2">Tidak ada kursus ditemukan</h3>
           <p className="text-gray-600 mb-4">Coba ubah kata kunci pencarian Anda</p>
+        </div>
+      )}
+
+      {/* Submissions Modal - Global */}
+      {showSubmissionsModal && selectedAssignment && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 backdrop-blur-md bg-black/50">
+          <div className="bg-white rounded-lg shadow-xl max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+              <div>
+                <h3 className="text-gray-900 font-semibold">Submission Tugas</h3>
+                <p className="text-sm text-gray-600 mt-1">{selectedAssignment.title}</p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowSubmissionsModal(false);
+                  setSelectedAssignment(null);
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="space-y-4">
+                {submissions.map((submission) => (
+                  <div key={submission.id} className="border border-gray-200 rounded-lg p-5">
+                    <div className="flex items-start gap-3 mb-4">
+                      <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        <span className="text-blue-600 font-semibold">
+                          {submission.name.split(' ').map(n => n[0]).join('')}
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between mb-3">
+                          <div>
+                            <p className="text-gray-900 font-medium">{submission.name}</p>
+                            <p className="text-sm text-gray-600">{submission.nim}</p>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <a
+                              href={getSubmissionDownloadUrl(submission.id)}
+                              download
+                              className="px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors flex items-center gap-1"
+                            >
+                              <Download className="w-4 h-4" />
+                              Download Tugas
+                            </a>
+                            <button
+                              onClick={() => handleGradeSubmission(submission)}
+                              className="px-3 py-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm flex items-center gap-1"
+                            >
+                              <Edit className="w-4 h-4" />
+                              {submission.score !== null ? 'Edit Nilai' : 'Beri Nilai'}
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2 mb-3">
+                          <div className="flex items-center gap-2 text-sm text-gray-600">
+                            <FileText className="w-4 h-4" />
+                            <span>{submission.fileName} ({submission.fileSize})</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm text-gray-600">
+                            <Clock className="w-4 h-4" />
+                            <span>Submit: {submission.submittedAt}</span>
+                          </div>
+                        </div>
+
+                        {submission.answerText && (
+                          <div className="bg-gray-50 rounded-lg p-4 mb-3">
+                            <p className="text-sm text-gray-700 leading-relaxed">{submission.answerText}</p>
+                          </div>
+                        )}
+
+                        {submission.score !== null && (
+                          <div className="flex items-start gap-2">
+                            <span className="inline-flex px-3 py-1 bg-green-100 text-green-700 text-sm font-medium rounded">
+                              Nilai: {submission.score}
+                            </span>
+                            {submission.feedback && (
+                              <span className="text-sm text-gray-600">• {submission.feedback}</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Grading Modal - Global */}
+      {showGradingModal && selectedSubmission && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 backdrop-blur-md bg-black/50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full">
+            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+              <div>
+                <h3 className="text-gray-900 font-semibold">Penilaian Tugas</h3>
+                <p className="text-sm text-gray-600 mt-1">{selectedSubmission.name} - {selectedSubmission.nim}</p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowGradingModal(false);
+                  setSelectedSubmission(null);
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="bg-gray-50 rounded-lg p-4">
+                <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
+                  <FileText className="w-4 h-4" />
+                  <span>{selectedSubmission.fileName}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <Clock className="w-4 h-4" />
+                  <span>Submit: {selectedSubmission.submittedAt}</span>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Nilai (0-100)</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  defaultValue={selectedSubmission.score || ''}
+                  className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:outline-none"
+                  placeholder="Masukkan nilai..."
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Feedback</label>
+                <textarea
+                  rows={4}
+                  defaultValue={selectedSubmission.feedback}
+                  className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:outline-none"
+                  placeholder="Berikan feedback untuk mahasiswa..."
+                />
+              </div>
+            </div>
+            <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowGradingModal(false);
+                  setSelectedSubmission(null);
+                }}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Batal
+              </button>
+              <button className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                Simpan Nilai
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

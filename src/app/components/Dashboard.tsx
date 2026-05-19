@@ -8,26 +8,29 @@ interface DashboardProps {
 }
 
 export function Dashboard({ setActiveTab, onCourseSelect }: DashboardProps) {
-  const [dashboardData, setDashboardData] = useState({
-    todayCourses: [
-    { id: 1, name: 'Algoritma & Struktur Data', time: '08:00 - 10:00', room: 'Lab 301', instructor: 'Dr. Ahmad Rahman', color: 'bg-blue-500' },
-    { id: 3, name: 'Pemrograman Web', time: '13:00 - 15:00', room: 'Lab 405', instructor: 'Ir. Budi Hartono', color: 'bg-blue-500' },
-    ],
-    upcomingDeadlines: [
-    { id: 1, title: 'Project Akhir Basis Data', course: 'Basis Data Lanjutan', dueDate: '5 Jan 2026', urgent: true },
-    { id: 2, title: 'Quiz Sorting Algorithms', course: 'Algoritma & Struktur Data', dueDate: '7 Jan 2026', urgent: false },
-    { id: 3, title: 'Tugas Routing Protocol', course: 'Jaringan Komputer', dueDate: '10 Jan 2026', urgent: false },
-    ],
-    weeklyTaskCount: 5,
-  });
+  const [todayCourses, setTodayCourses] = useState<any[]>([]);
+  const [upcomingDeadlines, setUpcomingDeadlines] = useState<any[]>([]);
+  const [weeklyTaskCount, setWeeklyTaskCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    api.get<typeof dashboardData>('/student/dashboard')
-      .then(setDashboardData)
-      .catch((error) => console.error('Failed to load dashboard data:', error));
+    const load = async () => {
+      setIsLoading(true);
+      setError('');
+      try {
+        const data = await api.get<any>('/student/dashboard');
+        setTodayCourses(data?.todayCourses || []);
+        setUpcomingDeadlines(data?.upcomingDeadlines || []);
+        setWeeklyTaskCount(data?.weeklyTaskCount || 0);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Gagal memuat dashboard');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    load();
   }, []);
-
-  const { todayCourses, upcomingDeadlines, weeklyTaskCount } = dashboardData;
 
   return (
     <div className="space-y-8">
@@ -36,12 +39,19 @@ export function Dashboard({ setActiveTab, onCourseSelect }: DashboardProps) {
         <h2 className="text-white mb-2">Selamat Datang Kembali! 👋</h2>
         <p className="text-blue-100">Anda memiliki {weeklyTaskCount} tugas yang perlu diselesaikan minggu ini.</p>
       </div>
+      {isLoading && <div className="text-sm text-gray-600">Memuat dashboard...</div>}
+      {error && <div className="text-sm text-red-600">{error}</div>}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Today Courses */}
         <div className="lg:col-span-2 bg-white rounded-xl p-6 border border-gray-200">
           <h3 className="text-gray-900 mb-6">Kursus Hari Ini</h3>
           <div className="space-y-4">
+            {todayCourses.length === 0 && !isLoading && !error && (
+              <div className="p-4 border border-dashed border-gray-300 rounded-lg text-sm text-gray-500">
+                Belum ada kursus hari ini.
+              </div>
+            )}
             {todayCourses.map((course) => (
               <div key={course.id} className="p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors cursor-pointer" onClick={() => onCourseSelect(course.id)}>
                 <div className="flex items-start gap-4">
@@ -69,6 +79,11 @@ export function Dashboard({ setActiveTab, onCourseSelect }: DashboardProps) {
         <div className="bg-white rounded-xl p-6 border border-gray-200">
           <h3 className="text-gray-900 mb-6">Deadline Mendatang</h3>
           <div className="space-y-4">
+            {upcomingDeadlines.length === 0 && !isLoading && !error && (
+              <div className="p-4 border border-dashed border-gray-300 rounded-lg text-sm text-gray-500">
+                Belum ada deadline tugas.
+              </div>
+            )}
             {upcomingDeadlines.map((deadline) => (
               <div key={deadline.id} className="p-4 border border-gray-200 rounded-lg">
                 <div className="flex items-start gap-3">

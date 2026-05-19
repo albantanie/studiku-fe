@@ -1,23 +1,30 @@
 import { useEffect, useState } from 'react';
-import { FileText, Video, Eye, Book, File } from 'lucide-react';
+import { FileText, Video, Download, Eye, Book, File } from 'lucide-react';
 import { api } from '../../services/api';
-import { MaterialModal } from './MaterialModal';
+import { getMaterialDownloadUrl } from '../../services/fileService';
 
 export function Materials() {
   const [selectedCourse, setSelectedCourse] = useState('all');
-  const [selectedMaterial, setSelectedMaterial] = useState<any | null>(null);
-
-  const [courses, setCourses] = useState<any[]>([]);
-
+  const [courses, setCourses] = useState<any[]>([{ id: 'all', name: 'Semua Kursus' }]);
   const [materials, setMaterials] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    api.get<{ courses: typeof courses; materials: typeof materials }>('/student/materials')
-      .then((data) => {
-        setCourses(data.courses);
-        setMaterials(data.materials);
-      })
-      .catch((error) => console.error('Failed to load materials:', error));
+    const load = async () => {
+      setIsLoading(true);
+      setError('');
+      try {
+        const data = await api.get<any>('/student/materials');
+        setCourses(data?.courses || [{ id: 'all', name: 'Semua Kursus' }]);
+        setMaterials(data?.materials || []);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Gagal memuat materi');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    load();
   }, []);
 
   const filteredMaterials = materials.filter((material) => {
@@ -118,22 +125,20 @@ export function Materials() {
               </div>
 
               <div className="flex gap-2">
-                <button
-                  onClick={() => setSelectedMaterial(material)}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
+                <button className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
                   <Eye className="w-4 h-4" />
                   <span>Lihat</span>
                 </button>
+                <a href={getMaterialDownloadUrl(material.id)} className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
+                  <Download className="w-4 h-4" />
+                </a>
               </div>
             </div>
           </div>
         ))}
       </div>
-
-      {selectedMaterial && (
-        <MaterialModal material={selectedMaterial} onClose={() => setSelectedMaterial(null)} />
-      )}
+      {isLoading && <div className="text-gray-500">Memuat materi...</div>}
+      {error && <div className="text-red-700">{error}</div>}
     </div>
   );
 }

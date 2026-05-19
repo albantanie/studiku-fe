@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Search, Calendar, Users, Clock, CheckCircle, XCircle, AlertCircle, Filter, Eye, ChevronRight, ArrowLeft, BookOpen } from 'lucide-react';
-import { api } from '../../../services/api';
 
 interface Course {
   id: number;
@@ -46,10 +45,55 @@ export function AttendanceManagement() {
   const [filterStatus, setFilterStatus] = useState<string>('all');
 
   // Data Kursus
-  const [courses, setCourses] = useState<Course[]>([]);
+  const courses: Course[] = [
+    {
+      id: 1,
+      name: 'Pemrograman Dasar',
+      code: 'TIF101',
+      class: 'A1',
+      instructor: 'Dr. Budi Santoso',
+      assistant: 'Andi Prasetyo',
+      totalSessions: 14,
+      completedSessions: 8,
+      totalStudents: 35
+    },
+    {
+      id: 2,
+      name: 'Struktur Data',
+      code: 'TIF102',
+      class: 'B1',
+      instructor: 'Prof. Siti Aminah',
+      assistant: 'Budi Prasetyo',
+      totalSessions: 14,
+      completedSessions: 10,
+      totalStudents: 38
+    },
+    {
+      id: 3,
+      name: 'Basis Data',
+      code: 'TIF201',
+      class: 'C1',
+      instructor: 'Dr. Ahmad Wijaya',
+      assistant: 'Siti Aminah',
+      totalSessions: 14,
+      completedSessions: 5,
+      totalStudents: 32
+    },
+    {
+      id: 4,
+      name: 'Pemrograman Web',
+      code: 'TIF202',
+      class: 'TI-201',
+      instructor: 'Dr. Rina Kusuma',
+      assistant: 'Dewi Lestari',
+      totalSessions: 14,
+      completedSessions: 12,
+      totalStudents: 40
+    }
+  ];
 
   // Data Sesi per Kursus
-  const [sessions, setSessions] = useState<{ [key: number]: Session[] }>({
+  const sessions: { [key: number]: Session[] } = {
     1: [
       { id: 1, courseId: 1, sessionNumber: 1, date: '2025-01-06', time: '08:00 - 10:00', topic: 'Pengenalan Pemrograman', present: 33, absent: 1, excused: 1, totalStudents: 35, status: 'Selesai', assistantStatus: 'Hadir', assistantCheckInTime: '07:55' },
       { id: 2, courseId: 1, sessionNumber: 2, date: '2025-01-08', time: '08:00 - 10:00', topic: 'Variabel dan Tipe Data', present: 32, absent: 2, excused: 1, totalStudents: 35, status: 'Selesai', assistantStatus: 'Hadir', assistantCheckInTime: '07:58' },
@@ -72,10 +116,10 @@ export function AttendanceManagement() {
       { id: 13, courseId: 4, sessionNumber: 2, date: '2025-01-09', time: '15:00 - 17:00', topic: 'JavaScript Dasar', present: 39, absent: 0, excused: 1, totalStudents: 40, status: 'Selesai', assistantStatus: 'Hadir', assistantCheckInTime: '14:55' },
       { id: 14, courseId: 4, sessionNumber: 3, date: '2025-01-14', time: '15:00 - 17:00', topic: 'DOM Manipulation', present: 37, absent: 2, excused: 1, totalStudents: 40, status: 'Selesai', assistantStatus: 'Hadir', assistantCheckInTime: '14:52' },
     ]
-  });
+  };
 
   // Data Detail Presensi Mahasiswa per Sesi
-  const [studentAttendanceData, setStudentAttendanceData] = useState<{ [key: number]: StudentAttendance[] }>({
+  const studentAttendanceData: { [key: number]: StudentAttendance[] } = {
     1: [
       { id: 1, nim: '210101001', name: 'Ahmad Fauzi', status: 'Hadir', checkInTime: '08:05' },
       { id: 2, nim: '210101002', name: 'Siti Nurhaliza', status: 'Hadir', checkInTime: '08:03' },
@@ -102,17 +146,7 @@ export function AttendanceManagement() {
       { id: 19, nim: '210101019', name: 'Sari Dewi', status: 'Izin' },
       { id: 20, nim: '210101020', name: 'Tono Sumarno', status: 'Tidak Hadir' },
     ],
-  });
-
-  useEffect(() => {
-    api.get<{ courses: Course[]; sessions: { [key: number]: Session[] }; studentAttendanceData: { [key: number]: StudentAttendance[] } }>('/admin/attendance')
-      .then((data) => {
-        setCourses(data.courses);
-        setSessions(data.sessions);
-        setStudentAttendanceData(data.studentAttendanceData);
-      })
-      .catch((error) => console.error('Failed to load admin attendance:', error));
-  }, []);
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -295,11 +329,11 @@ export function AttendanceManagement() {
                     <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-blue-600 transition-all duration-300"
-                        style={{ width: `${course.totalSessions > 0 ? (course.completedSessions / course.totalSessions) * 100 : 0}%` }}
+                        style={{ width: `${(course.completedSessions / course.totalSessions) * 100}%` }}
                       />
                     </div>
                     <p className="text-xs text-gray-600 mt-1">
-                      {course.totalSessions > 0 ? Math.round((course.completedSessions / course.totalSessions) * 100) : 0}% selesai
+                      {Math.round((course.completedSessions / course.totalSessions) * 100)}% selesai
                     </p>
                   </div>
                 </div>

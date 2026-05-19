@@ -3,22 +3,34 @@ import { Award, TrendingUp, TrendingDown } from 'lucide-react';
 import { api } from '../../services/api';
 
 export function Grades() {
-  const [selectedSemester, setSelectedSemester] = useState('2025/2026');
-
-  const [semesters, setSemesters] = useState<any[]>([]);
+  const [selectedSemester, setSelectedSemester] = useState('');
+  const [semesters, setSemesters] = useState<Array<{ id: string; name: string }>>([]);
 
   const [grades, setGrades] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    api.get<typeof grades>('/student/grades')
-      .then(setGrades)
-      .catch((error) => console.error('Failed to load grades:', error));
-    api.get<typeof semesters>('/student/grade-semesters')
-      .then(setSemesters)
-      .catch((error) => console.error('Failed to load grade semesters:', error));
+    const load = async () => {
+      setIsLoading(true);
+      setError('');
+      try {
+        const sem = await api.get<any[]>('/student/grade-semesters');
+        const semList = (sem || []).map((x: any) => ({ id: x.id || x.value || x.semester, name: x.name || x.label || x.semester || x.value }));
+        setSemesters(semList);
+        if (semList.length > 0) setSelectedSemester(semList[0].id);
+        const data = await api.get<any[]>('/student/grades');
+        setGrades(data || []);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Gagal memuat nilai');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    load();
   }, []);
 
-  const filteredGrades = grades.filter((grade) => grade.semester === selectedSemester);
+  const filteredGrades = selectedSemester ? grades.filter((grade) => grade.semester === selectedSemester) : grades;
 
   const calculateGPA = (gradesList: typeof grades) => {
     const gradePoints: { [key: string]: number } = {
@@ -75,6 +87,8 @@ export function Grades() {
       </div>
 
       {/* Grades Table */}
+      {isLoading && <div className="text-sm text-gray-600">Memuat nilai...</div>}
+      {error && <div className="text-sm text-red-600">{error}</div>}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -88,6 +102,13 @@ export function Grades() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
+              {!isLoading && !error && filteredGrades.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-6 py-8 text-center text-sm text-gray-500">
+                    Belum ada nilai pada semester ini.
+                  </td>
+                </tr>
+              )}
               {filteredGrades.map((grade) => (
                 <tr key={grade.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4">

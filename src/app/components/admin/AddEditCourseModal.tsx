@@ -28,11 +28,9 @@ interface AddEditCourseModalProps {
 }
 
 export function AddEditCourseModal({ isOpen, onClose, onSave, course }: AddEditCourseModalProps) {
-  const [dosenList, setDosenList] = useState<any[]>([]);
-
-  const [asistenList, setAsistenList] = useState<any[]>([]);
-
-  const [kelasList, setKelasList] = useState<any[]>([]);
+  const [dosenList, setDosenList] = useState<string[]>([]);
+  const [asistenList, setAsistenList] = useState<string[]>([]);
+  const [kelasList, setKelasList] = useState<Array<{ code: string; name: string }>>([]);
 
   const [formData, setFormData] = useState<Course>({
     name: '',
@@ -53,15 +51,18 @@ export function AddEditCourseModal({ isOpen, onClose, onSave, course }: AddEditC
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    if (!isOpen) return;
-    api.get<{ dosenList: string[]; asistenList: string[]; kelasList: typeof kelasList }>('/admin/course-form-options')
+    api.get<any>('/admin/course-form-options')
       .then((data) => {
-        setDosenList(data.dosenList);
-        setAsistenList(data.asistenList);
-        setKelasList(data.kelasList);
+        setDosenList(data?.dosenList || []);
+        setAsistenList(data?.asistenList || []);
+        setKelasList(data?.kelasList || []);
       })
-      .catch((error) => console.error('Failed to load course form options:', error));
-  }, [isOpen]);
+      .catch(() => {
+        setDosenList([]);
+        setAsistenList([]);
+        setKelasList([]);
+      });
+  }, []);
 
   useEffect(() => {
     if (course) {

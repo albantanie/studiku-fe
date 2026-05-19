@@ -15,13 +15,24 @@ export function StudentManagement() {
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
-
   const [students, setStudents] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    api.get<typeof students>('/admin/students')
-      .then(setStudents)
-      .catch((error) => console.error('Failed to load students:', error));
+    const load = async () => {
+      setIsLoading(true);
+      setError('');
+      try {
+        const data = await api.get<any[]>('/admin/students');
+        setStudents(data || []);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Gagal memuat data mahasiswa');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    load();
   }, []);
 
   const filteredStudents = students.filter(student => {
@@ -48,21 +59,16 @@ export function StudentManagement() {
     setIsDeleteModalOpen(true);
   };
 
-  const handleSaveStudent = async (studentData: any) => {
-    if (modalMode === 'edit' && selectedStudent) {
-      const updated = await api.put<any>(`/admin/students/${selectedStudent.id}`, { ...selectedStudent, ...studentData });
-      setStudents(students.map((student) => student.id === selectedStudent.id ? updated : student));
-    } else {
-      const created = await api.post<any>('/admin/students', studentData);
-      setStudents([...students, created]);
+  const handleSaveStudent = (studentData: any) => {
+    if (modalMode === 'add') {
+      api.post('/admin/students', studentData).then(() => api.get<any[]>('/admin/students').then(setStudents));
+      return;
     }
+    api.put(`/admin/students/${selectedStudent?.id}`, studentData).then(() => api.get<any[]>('/admin/students').then(setStudents));
   };
 
-  const handleConfirmDelete = async () => {
-    if (selectedStudent) {
-      await api.delete(`/admin/students/${selectedStudent.id}`);
-      setStudents(students.filter((student) => student.id !== selectedStudent.id));
-    }
+  const handleConfirmDelete = () => {
+    api.delete(`/admin/students/${selectedStudent?.id}`).then(() => api.get<any[]>('/admin/students').then(setStudents));
   };
 
   const handleManagePassword = (student: any) => {
@@ -70,10 +76,9 @@ export function StudentManagement() {
     setIsPasswordModalOpen(true);
   };
 
-  const handleResetPassword = async () => {
-    if (!selectedStudent) return;
-    const updated = await api.put<any>(`/admin/students/${selectedStudent.id}/reset-password`, {});
-    setStudents(students.map((student) => student.id === selectedStudent.id ? updated : student));
+  const handleResetPassword = () => {
+    console.log('Reset password for student:', selectedStudent);
+    // Here you would handle the reset password operation
   };
 
   return (
@@ -136,6 +141,8 @@ export function StudentManagement() {
 
       {/* Students Table */}
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        {isLoading && <div className="p-4 text-gray-500">Memuat data mahasiswa...</div>}
+        {error && <div className="p-4 text-red-700 bg-red-50 border-b border-red-200">{error}</div>}
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
@@ -204,9 +211,17 @@ export function StudentManagement() {
       </div>
 
       {/* Pagination */}
-      <div className="px-4 py-3 bg-white border border-gray-200 rounded-lg">
+      <div className="flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg">
         <div className="text-sm text-gray-600">
           Menampilkan <span className="text-gray-900">{filteredStudents.length}</span> dari <span className="text-gray-900">{students.length}</span> mahasiswa
+        </div>
+        <div className="flex gap-2">
+          <button className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50">
+            Sebelumnya
+          </button>
+          <button className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+            Selanjutnya
+          </button>
         </div>
       </div>
 
@@ -214,22 +229,10 @@ export function StudentManagement() {
       <ImportStudentModal
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
-        onImport={async (data) => {
-          const createdStudents = await Promise.all(
-            data.map((student) => api.post<any>('/admin/students', {
-              name: student.name,
-              email: student.email,
-              studentId: student.studentId,
-              program: student.program,
-              semester: student.semester || 1,
-              courses: [],
-              status: student.status || 'Aktif',
-              password: 'password',
-              defaultPassword: 'password',
-              isPasswordChanged: false
-            }))
-          );
-          setStudents([...students, ...createdStudents]);
+        onImport={(data) => {
+          console.log('Imported students:', data);
+          // Here you would handle the imported data
+          // For example: add to state, send to API, etc.
         }}
       />
 

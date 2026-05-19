@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { GraduationCap, Mail, Lock, Eye, EyeOff, BookOpen, Award, Users } from 'lucide-react';
-import { api } from '../../services/api';
 
 interface LoginProps {
-  onLogin: (email: string, role: 'student' | 'admin' | 'lecturer' | 'assistant', name: string) => void;
+  onLogin: (email: string, role: 'student' | 'admin' | 'lecturer' | 'assistant') => void;
 }
 
 export function Login({ onLogin }: LoginProps) {
@@ -12,23 +11,25 @@ export function Login({ onLogin }: LoginProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-
-    try {
-      const normalizedEmail = email.trim().toLowerCase();
-      const user = await api.post<{ role: 'student' | 'admin' | 'lecturer' | 'assistant'; email: string; name: string }>('/auth/login', {
-        email: normalizedEmail,
-        password,
-      });
-      onLogin(user.email, user.role, user.name);
-    } catch (error) {
-      console.error('Login failed:', error);
-      alert('Login gagal. Pastikan backend berjalan dan email demo tersedia.');
-    } finally {
+    
+    // Simulate login process
+    setTimeout(() => {
       setIsLoading(false);
-    }
+      
+      // Check email and assign role
+      if (email === 'admin@app.com') {
+        onLogin(email, 'admin');
+      } else if (email === 'dosen@app.com') {
+        onLogin(email, 'lecturer');
+      } else if (email === 'asslab@app.com') {
+        onLogin(email, 'assistant');
+      } else {
+        onLogin(email, 'student');
+      }
+    }, 1000);
   };
 
   return (
@@ -105,13 +106,14 @@ export function Login({ onLogin }: LoginProps) {
 
             {/* Remember Me & Forgot Password */}
             <div className="flex items-center justify-between">
-              {/* <label className="flex items-center gap-2 cursor-pointer">
+              <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
                   className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                 />
                 <span className="text-sm text-gray-600">Ingat saya</span>
-              </label> */}
+              </label>
+            
             </div>
 
             {/* Login Button */}
@@ -130,17 +132,6 @@ export function Login({ onLogin }: LoginProps) {
               )}
             </button>
 
-            {/* Demo Accounts Hint */}
-            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-xs text-blue-800 mb-2">Demo Akun:</p>
-              <div className="space-y-1 text-xs text-blue-700">
-                <p>• <span className="font-medium">mahasiswa@app.com</span> - Akses Mahasiswa</p>
-                <p>• <span className="font-medium">admin@app.com</span> - Akses Admin</p>
-                <p>• <span className="font-medium">dosen@app.com</span> - Akses Dosen</p>
-                <p>• <span className="font-medium">asslab@app.com</span> - Akses Asisten Lab</p>
-                <p>• Password semua akun: <span className="font-medium">password</span></p>
-              </div>
-            </div>
           </form>
         </div>
       </div>

@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState, useRef } from 'react';
 import { X, Upload, FileText, CheckCircle, AlertCircle, Download } from 'lucide-react';
 import { api } from '../../../services/api';
 
 interface ImportStudentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onImport: (data: any[]) => void | Promise<void>;
+  onImport: (data: any[]) => void;
 }
 
 export function ImportStudentModal({ isOpen, onClose, onImport }: ImportStudentModalProps) {
@@ -14,15 +14,7 @@ export function ImportStudentModal({ isOpen, onClose, onImport }: ImportStudentM
   const [importStatus, setImportStatus] = useState<'idle' | 'preview' | 'success' | 'error'>('idle');
   const [previewData, setPreviewData] = useState<any[]>([]);
   const [errorMessage, setErrorMessage] = useState('');
-  const [validTypes, setValidTypes] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    api.get<string[]>('/admin/import-file-types')
-      .then(setValidTypes)
-      .catch((error) => console.error('Failed to load import file types:', error));
-  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -55,14 +47,22 @@ export function ImportStudentModal({ isOpen, onClose, onImport }: ImportStudentM
 
   const handleFile = (file: File) => {
     // Check file type
-    if (!validTypes.includes(file.type) && !file.name.endsWith('.csv')) {
-      setErrorMessage('Format file tidak valid. Gunakan file CSV atau Excel.');
-      setImportStatus('error');
-      return;
-    }
-
-    setFile(file);
-    parseFile(file);
+    api.get<any[]>('/admin/import-file-types')
+      .then((types) => {
+        const valid = (types || []).map((x: any) => x.value || x);
+        const ext = file.name.split('.').pop()?.toLowerCase();
+        if (valid.length > 0 && ext && !valid.includes(ext)) {
+          setErrorMessage('Format file tidak valid. Gunakan format sesuai template.');
+          setImportStatus('error');
+          return;
+        }
+        setFile(file);
+        parseFile(file);
+      })
+      .catch(() => {
+        setFile(file);
+        parseFile(file);
+      });
   };
 
   const parseFile = (file: File) => {
@@ -101,8 +101,8 @@ export function ImportStudentModal({ isOpen, onClose, onImport }: ImportStudentM
     reader.readAsText(file);
   };
 
-  const handleImport = async () => {
-    await onImport(previewData);
+  const handleImport = () => {
+    onImport(previewData);
     setImportStatus('success');
     setTimeout(() => {
       handleClose();

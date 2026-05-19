@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Award, Search, Filter, BookOpen, TrendingUp, Users, Eye, Edit2, X } from 'lucide-react';
+import { Award, Search, Filter, BookOpen, TrendingUp, Users, Download, Eye, Edit2, X } from 'lucide-react';
 import { api } from '../../../services/api';
 
 interface Student {
@@ -32,21 +32,31 @@ export function LecturerGrades() {
   const [filterCourse, setFilterCourse] = useState('all');
   const [selectedCourse, setSelectedCourse] = useState<CourseGrade | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
-  const [editingStudent, setEditingStudent] = useState<Student | null>(null);
-  const [gradeForm, setGradeForm] = useState({ tugas1: 0, tugas2: 0, tugas3: 0, ujianAkhir: 0 });
-
+  const [editingStudent, setEditingStudent] = useState<number | null>(null);
   const [courseGrades, setCourseGrades] = useState<CourseGrade[]>([]);
-
-  const [studentGrades, setStudentGrades] = useState<Student[]>([]);
+  const [studentGradesByCourse, setStudentGradesByCourse] = useState<Record<number, Student[]>>({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    api.get<{ courseGrades: CourseGrade[]; studentGrades: Student[] }>('/lecturer/grades')
-      .then((data) => {
-        setCourseGrades(data.courseGrades);
-        setStudentGrades(data.studentGrades);
-      })
-      .catch((error) => console.error('Failed to load lecturer grades:', error));
+    const load = async () => {
+      setIsLoading(true);
+      setError('');
+      try {
+        const payload = await api.get<any>('/lecturer/grades');
+        setCourseGrades(payload?.courseGrades || []);
+        const raw = payload?.studentGrades || payload?.studentGradesData || {};
+        setStudentGradesByCourse(raw);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Gagal memuat data nilai');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    load();
   }, []);
+
+  const studentGrades: Student[] = selectedCourse ? (studentGradesByCourse[selectedCourse.id] || []) : [];
 
   const filteredCourses = courseGrades.filter(course => {
     const matchesSearch = 
@@ -62,33 +72,6 @@ export function LecturerGrades() {
   const handleViewDetail = (course: CourseGrade) => {
     setSelectedCourse(course);
     setShowDetailModal(true);
-  };
-
-  const handleEditStudent = (student: Student) => {
-    setEditingStudent(student);
-    setGradeForm({
-      tugas1: student.tugas1,
-      tugas2: student.tugas2,
-      tugas3: student.tugas3,
-      ujianAkhir: student.ujianAkhir
-    });
-  };
-
-  const calculateLetterGrade = (score: number) => {
-    if (score >= 85) return 'A';
-    if (score >= 75) return 'B';
-    if (score >= 65) return 'C';
-    if (score >= 50) return 'D';
-    return 'E';
-  };
-
-  const handleSaveStudentGrade = async () => {
-    if (!editingStudent) return;
-    const nilaiAkhir = Number(((gradeForm.tugas1 + gradeForm.tugas2 + gradeForm.tugas3 + gradeForm.ujianAkhir) / 4).toFixed(1));
-    const updated = { ...editingStudent, ...gradeForm, nilaiAkhir, grade: calculateLetterGrade(nilaiAkhir) };
-    await api.put(`/lecturer/grades/students/${editingStudent.id}`, updated);
-    setStudentGrades(studentGrades.map((student) => student.id === editingStudent.id ? updated : student));
-    setEditingStudent(null);
   };
 
   const getGradeColor = (grade: string) => {
@@ -151,7 +134,7 @@ export function LecturerGrades() {
             <div>
               <p className="text-sm text-gray-600 mb-1">Rata-rata Nilai</p>
               <p className="text-3xl font-bold text-gray-900">
-                {courseGrades.length ? (courseGrades.reduce((sum, course) => sum + course.averageGrade, 0) / courseGrades.length).toFixed(1) : '0.0'}
+                {(courseGrades.reduce((sum, course) => sum + course.averageGrade, 0) / courseGrades.length).toFixed(1)}
               </p>
             </div>
             <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
@@ -165,7 +148,7 @@ export function LecturerGrades() {
             <div>
               <p className="text-sm text-gray-600 mb-1">Nilai Tertinggi</p>
               <p className="text-3xl font-bold text-green-600">
-                {courseGrades.length ? Math.max(...courseGrades.map(c => c.highestGrade)) : 0}
+                {Math.max(...courseGrades.map(c => c.highestGrade))}
               </p>
             </div>
             <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
@@ -200,14 +183,17 @@ export function LecturerGrades() {
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
               >
                 <option value="all">Semua Kursus</option>
-                <option value="TIF101">TIF101 - Pemrograman Dasar</option>
-                <option value="TIF102">TIF102 - Struktur Data</option>
-                <option value="TIF201">TIF201 - Basis Data</option>
+                {courseGrades.map((course) => (
+                  <option key={course.id} value={course.courseCode}>{course.courseCode} - {course.courseName}</option>
+                ))}
               </select>
             </div>
           </div>
         </div>
       </div>
+
+      {isLoading && <div className="bg-white border border-gray-200 rounded-lg p-4 text-gray-500">Memuat data nilai...</div>}
+      {error && <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">{error}</div>}
 
       {/* Course Grades */}
       <div className="bg-white rounded-lg border border-gray-200">
@@ -358,8 +344,12 @@ export function LecturerGrades() {
               </div>
 
               {/* Student Grades Table */}
-              <div className="mb-4">
+              <div className="flex items-center justify-between mb-4">
                 <h3 className="text-gray-900 font-semibold">Daftar Nilai Mahasiswa</h3>
+                <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2 text-sm">
+                  <Download className="w-4 h-4" />
+                  Export Excel
+                </button>
               </div>
 
               <div className="border border-gray-200 rounded-lg overflow-hidden">
@@ -400,7 +390,7 @@ export function LecturerGrades() {
                         </td>
                         <td className="px-4 py-3 text-center">
                           <button
-                            onClick={() => handleEditStudent(student)}
+                            onClick={() => setEditingStudent(student.id)}
                             className="px-2 py-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
                           >
                             <Edit2 className="w-4 h-4" />
@@ -421,47 +411,9 @@ export function LecturerGrades() {
               >
                 Tutup
               </button>
-              <button
-                onClick={() => setShowDetailModal(false)}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-              >
+              <button className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
                 Simpan Perubahan
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {editingStudent && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
-            <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-              <div>
-                <h2 className="text-lg text-gray-900">Edit Nilai</h2>
-                <p className="text-sm text-gray-600">{editingStudent.name}</p>
-              </div>
-              <button onClick={() => setEditingStudent(null)} className="text-gray-400 hover:text-gray-600 transition-colors">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-6 grid grid-cols-2 gap-4">
-              {(['tugas1', 'tugas2', 'tugas3', 'ujianAkhir'] as const).map((field) => (
-                <div key={field}>
-                  <label className="block text-sm text-gray-700 mb-1">{field}</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={gradeForm[field]}
-                    onChange={(e) => setGradeForm({ ...gradeForm, [field]: parseInt(e.target.value) || 0 })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-              ))}
-            </div>
-            <div className="border-t border-gray-200 px-6 py-4 flex justify-end gap-3">
-              <button onClick={() => setEditingStudent(null)} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">Batal</button>
-              <button onClick={handleSaveStudentGrade} className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">Simpan Nilai</button>
             </div>
           </div>
         </div>

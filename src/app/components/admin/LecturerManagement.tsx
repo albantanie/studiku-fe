@@ -25,13 +25,10 @@ export function LecturerManagement() {
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [selectedLecturer, setSelectedLecturer] = useState<Lecturer | null>(null);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
-
   const [lecturers, setLecturers] = useState<Lecturer[]>([]);
 
   useEffect(() => {
-    api.get<Lecturer[]>('/admin/lecturers')
-      .then(setLecturers)
-      .catch((error) => console.error('Failed to load lecturers:', error));
+    api.get<Lecturer[]>('/admin/lecturers').then((data) => setLecturers(data || [])).catch(() => setLecturers([]));
   }, []);
 
   // Filter lecturers based on search
@@ -67,39 +64,19 @@ export function LecturerManagement() {
     setIsDeleteModalOpen(true);
   };
 
-  const handleSaveLecturer = async (lecturer: Lecturer) => {
-    if (modalMode === 'edit' && selectedLecturer) {
-      const updated = await api.put<Lecturer>(`/admin/lecturers/${selectedLecturer.id}`, {
-        ...selectedLecturer,
-        ...lecturer
-      });
-      setLecturers(lecturers.map((item) => item.id === selectedLecturer.id ? updated : item));
-      return;
-    }
-
-    const created = await api.post<Lecturer>('/admin/lecturers', {
-      ...lecturer,
-      defaultPassword: lecturer.password || 'password',
-      isPasswordChanged: false
-    });
-    setLecturers([...lecturers, created]);
+  const handleSaveLecturer = (lecturer: Lecturer) => {
+    // Mock save action
+    console.log('Saving lecturer:', lecturer);
   };
 
-  const handleConfirmDelete = async () => {
-    if (!selectedLecturer) return;
-    await api.delete(`/admin/lecturers/${selectedLecturer.id}`);
-    setLecturers(lecturers.filter((lecturer) => lecturer.id !== selectedLecturer.id));
+  const handleConfirmDelete = () => {
+    // Mock delete action
+    console.log('Deleting lecturer:', selectedLecturer);
   };
 
-  const handleImportData = async (data: any[]) => {
-    const createdLecturers = await Promise.all(
-      data.map((lecturer) => api.post<Lecturer>('/admin/lecturers', {
-        ...lecturer,
-        defaultPassword: lecturer.password || 'password',
-        isPasswordChanged: false
-      }))
-    );
-    setLecturers([...lecturers, ...createdLecturers]);
+  const handleImportData = (data: any[]) => {
+    // Mock import action
+    console.log('Importing data:', data);
   };
 
   const handleManagePassword = (lecturer: Lecturer) => {
@@ -107,10 +84,9 @@ export function LecturerManagement() {
     setIsPasswordModalOpen(true);
   };
 
-  const handleResetPassword = async () => {
-    if (!selectedLecturer) return;
-    const updated = await api.put<Lecturer>(`/admin/lecturers/${selectedLecturer.id}/reset-password`, {});
-    setLecturers(lecturers.map((lecturer) => lecturer.id === selectedLecturer.id ? updated : lecturer));
+  const handleResetPassword = () => {
+    console.log('Reset password for lecturer:', selectedLecturer);
+    // Here you would handle the reset password operation
   };
 
   return (
@@ -328,8 +304,16 @@ export function LecturerManagement() {
       </div>
 
       {/* Results Info */}
-      <div className="mt-4 bg-white rounded-lg border border-gray-200 p-4 text-sm text-gray-600">
+      <div className="mt-4 bg-white rounded-lg border border-gray-200 p-4 flex items-center justify-between text-sm text-gray-600">
         <span>Menampilkan {filteredLecturers.length} dari {lecturers.length} dosen</span>
+        <div className="flex items-center gap-2">
+          <button className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
+            Sebelumnya
+          </button>
+          <button className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
+            Selanjutnya
+          </button>
+        </div>
       </div>
 
       {/* Modals */}

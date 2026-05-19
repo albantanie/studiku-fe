@@ -2,6 +2,7 @@ import { ArrowLeft, Calendar, Clock, MapPin, Video, FileText, ClipboardList, Ext
 import { useEffect, useState } from 'react';
 import { MaterialModal } from './MaterialModal';
 import { AssignmentModal } from './AssignmentModal';
+import { getMaterialDownloadUrl } from '../../services/fileService';
 import { api } from '../../services/api';
 
 interface SessionDetailProps {
@@ -20,18 +21,17 @@ interface SessionDetailProps {
 export function SessionDetail({ session, onBack }: SessionDetailProps) {
   const [selectedMaterial, setSelectedMaterial] = useState<any>(null);
   const [selectedAssignment, setSelectedAssignment] = useState<any>(null);
-
   const [materials, setMaterials] = useState<any[]>([]);
-
   const [assignments, setAssignments] = useState<any[]>([]);
 
   useEffect(() => {
-    api.get<{ materials: typeof materials; assignments: typeof assignments }>(`/student/sessions/${session.id}/detail`)
-      .then((data) => {
-        setMaterials(data.materials);
-        setAssignments(data.assignments);
-      })
-      .catch((error) => console.error('Failed to load session detail:', error));
+    api.get<any>(`/student/sessions/${session.id}/detail`).then((data) => {
+      setMaterials((data?.materials || []).map((m: any) => ({ ...m, fileUrl: getMaterialDownloadUrl(m.id) })));
+      setAssignments(data?.assignments || []);
+    }).catch(() => {
+      setMaterials([]);
+      setAssignments([]);
+    });
   }, [session.id]);
 
   return (
@@ -125,8 +125,7 @@ export function SessionDetail({ session, onBack }: SessionDetailProps) {
               {materials.map((material) => (
                 <div
                   key={material.id}
-                  className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors cursor-pointer"
-                  onClick={() => setSelectedMaterial(material)}
+                  className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors"
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
@@ -137,7 +136,32 @@ export function SessionDetail({ session, onBack }: SessionDetailProps) {
                       <p className="text-xs text-gray-500">{material.type} • {material.size}</p>
                     </div>
                   </div>
-                  <ExternalLink className="w-4 h-4 text-gray-400" />
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setSelectedMaterial(material)}
+                      className="text-xs px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                    >
+                      Lihat
+                    </button>
+                    {material.fileUrl ? (
+                      <a
+                        href={material.fileUrl}
+                        download
+                        className="text-xs px-3 py-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                      >
+                        Download Materi
+                      </a>
+                    ) : (
+                      <button
+                        disabled
+                        className="text-xs px-3 py-1.5 bg-gray-100 text-gray-400 rounded-lg cursor-not-allowed"
+                        title="File materi belum tersedia"
+                      >
+                        Materi Belum Ada
+                      </button>
+                    )}
+                    <ExternalLink className="w-4 h-4 text-gray-400" />
+                  </div>
                 </div>
               ))}
             </div>

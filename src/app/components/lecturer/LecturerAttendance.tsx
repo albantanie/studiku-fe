@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { UserCheck, Search, Filter, Calendar, Clock, CheckCircle, XCircle, Eye } from 'lucide-react';
+import { UserCheck, Search, Filter, Calendar, Clock, CheckCircle, XCircle, Download, Eye } from 'lucide-react';
 import { api } from '../../../services/api';
 
 interface Student {
@@ -32,18 +32,26 @@ export function LecturerAttendance() {
   const [filterDate, setFilterDate] = useState('');
   const [selectedSession, setSelectedSession] = useState<AttendanceSession | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
-
   const [attendanceSessions, setAttendanceSessions] = useState<AttendanceSession[]>([]);
-
   const [studentAttendance, setStudentAttendance] = useState<Student[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    api.get<{ attendanceSessions: AttendanceSession[]; studentAttendance: Student[] }>('/lecturer/attendance')
-      .then((data) => {
-        setAttendanceSessions(data.attendanceSessions);
-        setStudentAttendance(data.studentAttendance);
-      })
-      .catch((error) => console.error('Failed to load lecturer attendance:', error));
+    const load = async () => {
+      setIsLoading(true);
+      setError('');
+      try {
+        const payload = await api.get<any>('/lecturer/attendance');
+        setAttendanceSessions(payload?.attendanceSessions || []);
+        setStudentAttendance(payload?.studentAttendance || []);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Gagal memuat data presensi');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    load();
   }, []);
 
   const filteredSessions = attendanceSessions.filter(session => {
@@ -74,13 +82,8 @@ export function LecturerAttendance() {
   };
 
   const getAttendancePercentage = (session: AttendanceSession) => {
-    if (session.totalStudents <= 0) return '0.0';
     return ((session.present / session.totalStudents) * 100).toFixed(1);
   };
-
-  const totalPresent = attendanceSessions.reduce((sum, s) => sum + s.present, 0);
-  const totalStudents = attendanceSessions.reduce((sum, s) => sum + s.totalStudents, 0);
-  const averageAttendance = totalStudents > 0 ? ((totalPresent / totalStudents) * 100).toFixed(1) : '0.0';
 
   return (
     <div className="space-y-6">
@@ -109,7 +112,8 @@ export function LecturerAttendance() {
             <div>
               <p className="text-sm text-gray-600 mb-1">Rata-rata Hadir</p>
               <p className="text-3xl font-bold text-green-600">
-                {averageAttendance}%
+                {(attendanceSessions.reduce((sum, s) => sum + s.present, 0) / 
+                  attendanceSessions.reduce((sum, s) => sum + s.totalStudents, 0) * 100).toFixed(1)}%
               </p>
             </div>
             <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
@@ -170,12 +174,12 @@ export function LecturerAttendance() {
               onChange={(e) => setFilterCourse(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
             >
-              <option value="all">Semua Kursus</option>
-              <option value="TIF101">TIF101 - Pemrograman Dasar</option>
-              <option value="TIF102">TIF102 - Struktur Data</option>
-              <option value="TIF201">TIF201 - Basis Data</option>
-            </select>
-          </div>
+                <option value="all">Semua Kursus</option>
+                {Array.from(new Set(attendanceSessions.map((s) => s.courseCode))).map((code) => (
+                  <option key={code} value={code}>{code}</option>
+                ))}
+              </select>
+            </div>
 
           {/* Filter Date */}
           <div className="relative">
@@ -190,10 +194,17 @@ export function LecturerAttendance() {
         </div>
       </div>
 
+      {isLoading && <div className="bg-white border border-gray-200 rounded-lg p-4 text-gray-500">Memuat data presensi...</div>}
+      {error && <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">{error}</div>}
+
       {/* Attendance Sessions */}
       <div className="bg-white rounded-lg border border-gray-200">
-        <div className="px-6 py-4 border-b border-gray-200">
+        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
           <h2 className="text-gray-900">Riwayat Presensi</h2>
+          <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2">
+            <Download className="w-4 h-4" />
+            Export Excel
+          </button>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -402,12 +413,16 @@ export function LecturerAttendance() {
             </div>
 
             {/* Modal Footer */}
-            <div className="border-t border-gray-200 p-4 flex justify-end">
+            <div className="border-t border-gray-200 p-4 flex justify-end gap-3">
               <button
                 onClick={() => setShowDetailModal(false)}
                 className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 Tutup
+              </button>
+              <button className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2">
+                <Download className="w-4 h-4" />
+                Export Data
               </button>
             </div>
           </div>
