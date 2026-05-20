@@ -28,12 +28,15 @@ interface Course {
 
 interface Session {
   id: number;
+  courseId: number;
   sessionNumber: number;
   title: string;
   date: string;
   time: string;
   description: string;
   room: string;
+  reportStatus?: string;
+  reportId?: number | null;
 }
 
 interface Material {
@@ -93,6 +96,8 @@ export function AssistantPracticals() {
   const [assistantAttendanceTime, setAssistantAttendanceTime] = useState('08:00');
   const [isLoadingCourses, setIsLoadingCourses] = useState(true);
   const [coursesError, setCoursesError] = useState('');
+  const [reportError, setReportError] = useState('');
+  const [isSendingReport, setIsSendingReport] = useState(false);
 
   // Kursus yang diajar oleh asisten lab
   const [courses, setCourses] = useState<Course[]>([]);
@@ -111,21 +116,21 @@ export function AssistantPracticals() {
           id: c.id,
           courseCode: c.courseCode || c.classCode || c.code || '-',
           name: c.name,
-          lecturer: c.instructor || '-',
+          lecturer: c.lecturer || c.instructor || '-',
           class: c.class || c.classCode || '-',
-          lab: c.room || '-',
+          lab: c.lab || c.room || '-',
           schedule: {
-            day: c.day || '-',
-            startTime: c.startTime || '-',
-            endTime: c.endTime || '-',
+            day: c.schedule?.day || c.day || '-',
+            startTime: c.schedule?.startTime || c.startTime || '-',
+            endTime: c.schedule?.endTime || c.endTime || '-',
           },
-          semester: 'Ganjil',
+          semester: c.semester || '-',
           academicYear: c.academicYear || '-',
           students: c.students || 0,
           attendance: {
-            present: c.attendancePresent || 0,
-            total: c.attendanceTotal || 0,
-            percentage: c.attendanceTotal > 0 ? Math.round((c.attendancePresent || 0) * 100 / c.attendanceTotal) : 0,
+            present: c.attendance?.present || c.attendancePresent || 0,
+            total: c.attendance?.total || c.attendanceTotal || 0,
+            percentage: c.attendance?.percentage || (c.attendanceTotal > 0 ? Math.round((c.attendancePresent || 0) * 100 / c.attendanceTotal) : 0),
           },
           color: c.color || 'bg-blue-500',
         })));
@@ -162,6 +167,7 @@ export function AssistantPracticals() {
 
   const handleSessionClick = (session: Session) => {
     setSelectedSession(session);
+    setReportError('');
   };
 
   const handleBack = () => {
@@ -190,6 +196,33 @@ export function AssistantPracticals() {
           : record
       )
     );
+  };
+
+  const courseSessions = selectedCourse ? sessions.filter((session) => session.courseId === selectedCourse.id) : [];
+  const courseMaterials = selectedCourse ? materials.filter((material: any) => !material.courseId || material.courseId === selectedCourse.id) : materials;
+  const courseAssignments = selectedCourse ? assignments.filter((assignment: any) => !assignment.courseId || assignment.courseId === selectedCourse.id) : assignments;
+
+  const handleSendSessionReport = async () => {
+    if (!selectedSession) return;
+    setIsSendingReport(true);
+    setReportError('');
+    try {
+      const result = await api.post<any>(`/assistant/sessions/${selectedSession.id}/reports`, {});
+      setSessions((items) =>
+        items.map((item) =>
+          item.id === selectedSession.id
+            ? { ...item, reportStatus: result?.status || 'Menunggu Review', reportId: result?.id || item.reportId }
+            : item
+        )
+      );
+      setSelectedSession((session) =>
+        session ? { ...session, reportStatus: result?.status || 'Menunggu Review', reportId: result?.id || session.reportId } : session
+      );
+    } catch (err) {
+      setReportError(err instanceof Error ? err.message : 'Gagal kirim laporan');
+    } finally {
+      setIsSendingReport(false);
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -262,6 +295,25 @@ export function AssistantPracticals() {
           </div>
         </div>
 
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h3 className="text-gray-900 font-semibold">Laporan Sesi</h3>
+              <p className="text-sm text-gray-600 mt-1">
+                Status: {selectedSession.reportStatus || 'Belum dikirim'}
+              </p>
+              {reportError && <p className="text-sm text-red-600 mt-2">{reportError}</p>}
+            </div>
+            <button
+              onClick={handleSendSessionReport}
+              disabled={isSendingReport || selectedSession.reportStatus === 'Menunggu Review' || selectedSession.reportStatus === 'Disetujui'}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60 transition-colors text-sm font-medium"
+            >
+              {isSendingReport ? 'Mengirim...' : selectedSession.reportStatus === 'Ditolak' ? 'Kirim Ulang' : 'Kirim Laporan'}
+            </button>
+          </div>
+        </div>
+
         {/* Upload Materi */}
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-4">
@@ -274,9 +326,9 @@ export function AssistantPracticals() {
               Upload Materi
             </button>
           </div>
-          {materials.length > 0 ? (
+          {courseMaterials.length > 0 ? (
             <div className="space-y-2">
-              {materials.map((material) => (
+              {courseMaterials.map((material) => (
                 <div key={material.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
                   <div className="flex items-center gap-3">
                     <FileText className="w-5 h-5 text-blue-500" />
@@ -316,9 +368,9 @@ export function AssistantPracticals() {
               Buat Tugas Baru
             </button>
           </div>
-          {assignments.filter(a => a.sessionNumber === selectedSession.sessionNumber).length > 0 ? (
+          {courseAssignments.filter(a => a.sessionNumber === selectedSession.sessionNumber).length > 0 ? (
             <div className="space-y-3">
-              {assignments.filter(a => a.sessionNumber === selectedSession.sessionNumber).map((assignment) => (
+              {courseAssignments.filter(a => a.sessionNumber === selectedSession.sessionNumber).map((assignment) => (
                 <div key={assignment.id} className="border border-gray-200 rounded-lg p-4">
                   <div className="flex items-start justify-between mb-2">
                     <h4 className="text-gray-900 font-medium">{assignment.title}</h4>
@@ -803,7 +855,7 @@ export function AssistantPracticals() {
               <div>
                 <h3 className="text-gray-900 font-semibold mb-4">Daftar Sesi Kursus</h3>
                 <div className="space-y-3">
-                  {sessions.map((session) => (
+                  {courseSessions.map((session) => (
                     <div
                       key={session.id}
                       className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
@@ -849,9 +901,9 @@ export function AssistantPracticals() {
                   </button>
                 </div>
                 
-                {assignments.length > 0 ? (
+                {courseAssignments.length > 0 ? (
                   <div className="space-y-4">
-                    {assignments.map((assignment) => (
+                    {courseAssignments.map((assignment) => (
                       <div key={assignment.id} className="border border-gray-200 rounded-lg p-5 hover:shadow-md transition-shadow">
                         <div className="flex items-start justify-between mb-3">
                           <div>

@@ -37,12 +37,37 @@ export function LabAssistantManagement() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [assistantsData, setAssistantsData] = useState<LabAssistant[]>([]);
   const [labs, setLabs] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
   const assistants: LabAssistant[] = assistantsData;
 
   useEffect(() => {
-    api.get<LabAssistant[]>('/admin/lab-assistants').then((data) => setAssistantsData(data || [])).catch(() => setAssistantsData([]));
-    api.get<any[]>('/admin/labs').then((data) => setLabs((data || []).map((x: any) => x.label || x.value || String(x)))).catch(() => setLabs([]));
+    loadAssistants();
+    loadLabs();
   }, []);
+
+  const loadAssistants = async () => {
+    setIsLoading(true);
+    setError('');
+    try {
+      const data = await api.get<LabAssistant[]>('/admin/lab-assistants');
+      setAssistantsData(data || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal memuat data asisten lab');
+      setAssistantsData([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadLabs = async () => {
+    try {
+      const data = await api.get<any[]>('/admin/labs');
+      setLabs((data || []).map((x: any) => x.label || x.value || String(x)));
+    } catch {
+      setLabs([]);
+    }
+  };
 
   const filteredAssistants = assistants.filter(assistant => {
     const matchesSearch = assistant.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -69,9 +94,20 @@ export function LabAssistantManagement() {
     setIsDeleteModalOpen(true);
   };
 
-  const handleSaveAssistant = (assistant: LabAssistant) => {
-    // Mock save action
-    console.log('Saving assistant:', assistant);
+  const handleSaveAssistant = async (assistant: LabAssistant) => {
+    setError('');
+    try {
+      if (modalMode === 'add') {
+        await api.post('/admin/lab-assistants', assistant);
+      } else {
+        await api.put(`/admin/lab-assistants/${selectedAssistant?.id}`, assistant);
+      }
+      await loadAssistants();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Gagal menyimpan data asisten lab';
+      setError(message);
+      throw new Error(message);
+    }
   };
 
   const handleImportAssistants = async (data: any[]) => {
@@ -80,9 +116,16 @@ export function LabAssistantManagement() {
     toast.success('Import data aslab berhasil.');
   };
 
-  const handleConfirmDelete = () => {
-    // Mock delete action
-    console.log('Deleting assistant:', selectedAssistant);
+  const handleConfirmDelete = async () => {
+    if (!selectedAssistant?.id) return;
+    setError('');
+    try {
+      await api.delete(`/admin/lab-assistants/${selectedAssistant.id}`);
+      await loadAssistants();
+      setSelectedAssistant(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal menghapus data asisten lab');
+    }
   };
 
   const handleManagePassword = (assistant: LabAssistant) => {
@@ -90,9 +133,15 @@ export function LabAssistantManagement() {
     setIsPasswordModalOpen(true);
   };
 
-  const handleResetPassword = () => {
-    console.log('Reset password for assistant:', selectedAssistant);
-    // Here you would handle the reset password operation
+  const handleResetPassword = async () => {
+    if (!selectedAssistant?.id) return;
+    setError('');
+    try {
+      await api.put(`/admin/lab-assistants/${selectedAssistant.id}/reset-password`, {});
+      await loadAssistants();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal reset password asisten lab');
+    }
   };
 
   return (
@@ -101,6 +150,8 @@ export function LabAssistantManagement() {
         <h1 className="text-gray-900">Manajemen Pengguna</h1>
         <p className="text-gray-600 mt-1">Kelola asisten lab dan penugasan mereka</p>
       </div>
+      {isLoading && <div className="text-sm text-gray-600">Memuat data asisten lab...</div>}
+      {error && <div className="text-sm text-red-600">{error}</div>}
 
       <div className="flex items-center justify-between">
         <h3 className="text-gray-900">Data Asisten Laboratorium</h3>
@@ -232,6 +283,7 @@ export function LabAssistantManagement() {
         mode={modalMode}
         assistant={selectedAssistant}
         onAddEdit={handleSaveAssistant}
+        labs={labs}
       />
 
       {/* Delete Modal */}

@@ -29,4 +29,12 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src/app'),
     },
   },
+  server: {
+    proxy: {
+      '/api': {
+        target: process.env.VITE_BACKEND_PROXY_TARGET || 'http://localhost:8087',
+        changeOrigin: true,
+      },
+    },
+  },
 })

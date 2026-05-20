@@ -10,7 +10,7 @@ interface DashboardProps {
 export function Dashboard({ setActiveTab, onCourseSelect }: DashboardProps) {
   const [todayCourses, setTodayCourses] = useState<any[]>([]);
   const [upcomingDeadlines, setUpcomingDeadlines] = useState<any[]>([]);
-  const [weeklyTaskCount, setWeeklyTaskCount] = useState(0);
+  const [pendingTaskCount, setPendingTaskCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -22,7 +22,7 @@ export function Dashboard({ setActiveTab, onCourseSelect }: DashboardProps) {
         const data = await api.get<any>('/student/dashboard');
         setTodayCourses(data?.todayCourses || []);
         setUpcomingDeadlines(data?.upcomingDeadlines || []);
-        setWeeklyTaskCount(data?.weeklyTaskCount || 0);
+        setPendingTaskCount(data?.pendingTaskCount || 0);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Gagal memuat dashboard');
       } finally {
@@ -37,7 +37,11 @@ export function Dashboard({ setActiveTab, onCourseSelect }: DashboardProps) {
       {/* Welcome Section */}
       <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 text-white">
         <h2 className="text-white mb-2">Selamat Datang Kembali! 👋</h2>
-        <p className="text-blue-100">Anda memiliki {weeklyTaskCount} tugas yang perlu diselesaikan minggu ini.</p>
+        <p className="text-blue-100">
+          {pendingTaskCount > 0
+            ? `Anda memiliki ${pendingTaskCount} tugas aktif yang perlu diselesaikan.`
+            : 'Belum ada tugas aktif yang perlu diselesaikan.'}
+        </p>
       </div>
       {isLoading && <div className="text-sm text-gray-600">Memuat dashboard...</div>}
       {error && <div className="text-sm text-red-600">{error}</div>}

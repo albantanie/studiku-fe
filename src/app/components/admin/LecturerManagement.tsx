@@ -26,10 +26,26 @@ export function LecturerManagement() {
   const [selectedLecturer, setSelectedLecturer] = useState<Lecturer | null>(null);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
   const [lecturers, setLecturers] = useState<Lecturer[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    api.get<Lecturer[]>('/admin/lecturers').then((data) => setLecturers(data || [])).catch(() => setLecturers([]));
+    loadLecturers();
   }, []);
+
+  const loadLecturers = async () => {
+    setIsLoading(true);
+    setError('');
+    try {
+      const data = await api.get<Lecturer[]>('/admin/lecturers');
+      setLecturers(data || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal memuat data dosen');
+      setLecturers([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Filter lecturers based on search
   const filteredLecturers = lecturers.filter(lecturer =>
@@ -64,14 +80,32 @@ export function LecturerManagement() {
     setIsDeleteModalOpen(true);
   };
 
-  const handleSaveLecturer = (lecturer: Lecturer) => {
-    // Mock save action
-    console.log('Saving lecturer:', lecturer);
+  const handleSaveLecturer = async (lecturer: Lecturer) => {
+    setError('');
+    try {
+      if (modalMode === 'add') {
+        await api.post('/admin/lecturers', lecturer);
+      } else {
+        await api.put(`/admin/lecturers/${selectedLecturer?.id}`, lecturer);
+      }
+      await loadLecturers();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Gagal menyimpan data dosen';
+      setError(message);
+      throw new Error(message);
+    }
   };
 
-  const handleConfirmDelete = () => {
-    // Mock delete action
-    console.log('Deleting lecturer:', selectedLecturer);
+  const handleConfirmDelete = async () => {
+    if (!selectedLecturer?.id) return;
+    setError('');
+    try {
+      await api.delete(`/admin/lecturers/${selectedLecturer.id}`);
+      await loadLecturers();
+      setSelectedLecturer(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal menghapus data dosen');
+    }
   };
 
   const handleImportData = (data: any[]) => {
@@ -84,9 +118,15 @@ export function LecturerManagement() {
     setIsPasswordModalOpen(true);
   };
 
-  const handleResetPassword = () => {
-    console.log('Reset password for lecturer:', selectedLecturer);
-    // Here you would handle the reset password operation
+  const handleResetPassword = async () => {
+    if (!selectedLecturer?.id) return;
+    setError('');
+    try {
+      await api.put(`/admin/lecturers/${selectedLecturer.id}/reset-password`, {});
+      await loadLecturers();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal reset password dosen');
+    }
   };
 
   return (
@@ -96,6 +136,8 @@ export function LecturerManagement() {
         <h1 className="text-gray-900">Manajemen Pengguna</h1>
         <p className="text-gray-600 mt-1">Kelola data dosen dan informasi akademik</p>
       </div>
+      {isLoading && <div className="text-sm text-gray-600">Memuat data dosen...</div>}
+      {error && <div className="text-sm text-red-600">{error}</div>}
 
       {/* Title and Action Buttons */}
       <div className="flex items-center justify-between">

@@ -3,7 +3,7 @@ import { Dashboard } from './components/Dashboard';
 import { Courses } from './components/Courses';
 import { Assignments } from './components/Assignments';
 import { Grades } from './components/Grades';
-import { Login } from './components/Login';
+import { AuthUser, Login } from './components/Login';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { StudentManagement } from './components/admin/StudentManagement';
 import { LecturerManagement } from './components/admin/LecturerManagement';
@@ -29,24 +29,23 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userRole, setUserRole] = useState<'student' | 'admin' | 'lecturer' | 'assistant'>('student');
-  const [userEmail, setUserEmail] = useState('');
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [userMenuExpanded, setUserMenuExpanded] = useState(true);
   const AUTH_STORAGE_KEY = 'studiku:auth-session';
+  const userRole = currentUser?.role ?? 'student';
+  const isValidRole = (role: unknown): role is AuthUser['role'] =>
+    role === 'student' || role === 'admin' || role === 'lecturer' || role === 'assistant';
 
   useEffect(() => {
     try {
       const raw = localStorage.getItem(AUTH_STORAGE_KEY);
       if (!raw) return;
-      const session = JSON.parse(raw) as {
-        isLoggedIn: boolean;
-        email: string;
-        role: 'student' | 'admin' | 'lecturer' | 'assistant';
-      };
-      if (session?.isLoggedIn && session.email && session.role) {
+      const session = JSON.parse(raw) as AuthUser;
+      if (Number.isFinite(session?.id) && session?.name && session?.email && isValidRole(session.role)) {
         setIsLoggedIn(true);
-        setUserEmail(session.email);
-        setUserRole(session.role);
+        setCurrentUser(session);
+      } else {
+        localStorage.removeItem(AUTH_STORAGE_KEY);
       }
     } catch {
       localStorage.removeItem(AUTH_STORAGE_KEY);
@@ -57,8 +56,7 @@ export default function App() {
     const handleAuthExpired = () => {
       setIsLoggedIn(false);
       setActiveTab('dashboard');
-      setUserEmail('');
-      setUserRole('student');
+      setCurrentUser(null);
       localStorage.removeItem(AUTH_STORAGE_KEY);
     };
     window.addEventListener('studiku:auth-expired', handleAuthExpired);
@@ -70,18 +68,16 @@ export default function App() {
     setActiveTab('courses');
   };
 
-  const handleLogin = (email: string, role: 'student' | 'admin' | 'lecturer' | 'assistant') => {
+  const handleLogin = (user: AuthUser) => {
     setIsLoggedIn(true);
-    setUserEmail(email);
-    setUserRole(role);
-    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ isLoggedIn: true, email, role }));
+    setCurrentUser(user);
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
   };
 
   const handleLogout = () => {
     setIsLoggedIn(false);
     setActiveTab('dashboard');
-    setUserEmail('');
-    setUserRole('student');
+    setCurrentUser(null);
     localStorage.removeItem(AUTH_STORAGE_KEY);
   };
 
@@ -133,17 +129,17 @@ export default function App() {
   }
 
   const getUserName = () => {
-    if (userRole === 'admin') return 'Administrator';
-    if (userRole === 'lecturer') return 'Prof. Dr. Ahmad Wijaya';
-    if (userRole === 'assistant') return 'Andi Pratama';
-    return 'Budi Santoso';
+    return currentUser?.name || currentUser?.email || '-';
   };
 
   const getUserInitials = () => {
-    if (userRole === 'admin') return 'AD';
-    if (userRole === 'lecturer') return 'AW';
-    if (userRole === 'assistant') return 'AP';
-    return 'BS';
+    const source = currentUser?.name || currentUser?.email || '-';
+    return source
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase())
+      .join('') || '-';
   };
 
   const getUserRole = () => {
@@ -338,9 +334,6 @@ export default function App() {
               <div className="flex items-center gap-4">
                 <button className="relative text-gray-500 hover:text-gray-700">
                   <Bell className="w-6 h-6" />
-                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white text-xs">
-                    3
-                  </span>
                 </button>
                 
                 {/* User Profile */}
@@ -373,7 +366,7 @@ export default function App() {
             </>
           ) : userRole === 'lecturer' ? (
             <>
-              {activeTab === 'dashboard' && <LecturerDashboard />}
+              {activeTab === 'dashboard' && <LecturerDashboard userName={currentUser?.name} />}
               {activeTab === 'courses' && <LecturerCourses />}
               {activeTab === 'attendance' && <LecturerAttendance />}
               {activeTab === 'grades' && <LecturerGrades />}
@@ -381,7 +374,7 @@ export default function App() {
             </>
           ) : userRole === 'assistant' ? (
             <>
-              {activeTab === 'dashboard' && <AssistantDashboard />}
+              {activeTab === 'dashboard' && <AssistantDashboard userName={currentUser?.name} />}
               {activeTab === 'practicals' && <AssistantPracticals />}
               {activeTab === 'attendance' && <AssistantAttendance />}
               {activeTab === 'reports' && <AssistantReports />}

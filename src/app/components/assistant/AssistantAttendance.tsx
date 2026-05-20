@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { UserCheck, Search, Filter, Calendar, Clock, CheckCircle, XCircle, Download, Eye, X } from 'lucide-react';
+import { UserCheck, Search, Filter, Calendar, CheckCircle, XCircle, Download, Eye, X } from 'lucide-react';
 import { api } from '../../../services/api';
 
 interface Student {
@@ -34,7 +34,9 @@ export function AssistantAttendance() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [attendanceSessions, setAttendanceSessions] = useState<AttendanceSession[]>([]);
   const [studentAttendance, setStudentAttendance] = useState<Student[]>([]);
+  const [studentAttendanceBySession, setStudentAttendanceBySession] = useState<Record<number, Student[]>>({});
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -44,6 +46,7 @@ export function AssistantAttendance() {
       try {
         const payload = await api.get<any>('/assistant/attendance');
         setAttendanceSessions(payload?.attendanceSessions || []);
+        setStudentAttendanceBySession(payload?.studentAttendanceBySession || {});
         setStudentAttendance(payload?.studentAttendance || []);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Gagal memuat data presensi');
@@ -68,22 +71,51 @@ export function AssistantAttendance() {
 
   const handleViewDetail = (session: AttendanceSession) => {
     setSelectedSession(session);
+    setStudentAttendance(studentAttendanceBySession[session.id] || []);
     setShowDetailModal(true);
   };
 
-  const getStatusBadge = (status: string) => {
-    const styles = {
-      Hadir: 'bg-green-100 text-green-700',
-      Izin: 'bg-blue-100 text-blue-700',
-      Sakit: 'bg-yellow-100 text-yellow-700',
-      Alpa: 'bg-red-100 text-red-700',
-    };
-    return styles[status as keyof typeof styles] || 'bg-gray-100 text-gray-700';
+  const handleUpdateRecord = (id: number, patch: Partial<Student>) => {
+    setStudentAttendance((records) =>
+      records.map((record) => (record.id === id ? { ...record, ...patch } : record))
+    );
+  };
+
+  const handleSaveAttendance = async () => {
+    if (!selectedSession) return;
+    setIsSaving(true);
+    setError('');
+    try {
+      await api.put(`/assistant/attendance/sessions/${selectedSession.id}`, {
+        records: studentAttendance.map((record) => ({
+          id: record.id,
+          nim: record.nim,
+          name: record.name,
+          status: record.status,
+          time: record.time || '',
+        })),
+      });
+      const payload = await api.get<any>('/assistant/attendance');
+      setAttendanceSessions(payload?.attendanceSessions || []);
+      setStudentAttendanceBySession(payload?.studentAttendanceBySession || {});
+      setStudentAttendance(payload?.studentAttendanceBySession?.[selectedSession.id] || []);
+      setShowDetailModal(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal menyimpan presensi');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const getAttendancePercentage = (session: AttendanceSession) => {
+    if (!session.totalStudents) return '0.0';
     return ((session.present / session.totalStudents) * 100).toFixed(1);
   };
+
+  const totalStudents = attendanceSessions.reduce((sum, s) => sum + s.totalStudents, 0);
+  const attendanceAverage = totalStudents
+    ? ((attendanceSessions.reduce((sum, s) => sum + s.present, 0) / totalStudents) * 100).toFixed(1)
+    : '0.0';
 
   return (
     <div className="space-y-6">
@@ -112,8 +144,7 @@ export function AssistantAttendance() {
             <div>
               <p className="text-sm text-gray-600 mb-1">Rata-rata Hadir</p>
               <p className="text-3xl font-bold text-green-600">
-                {(attendanceSessions.reduce((sum, s) => sum + s.present, 0) / 
-                  attendanceSessions.reduce((sum, s) => sum + s.totalStudents, 0) * 100).toFixed(1)}%
+                {attendanceAverage}%
               </p>
             </div>
             <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
@@ -381,8 +412,8 @@ export function AssistantAttendance() {
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase">No</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase">NIM</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase">Nama</th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-600 uppercase">Waktu</th>
                       <th className="px-4 py-3 text-center text-xs font-medium text-gray-600 uppercase">Status</th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-600 uppercase">Waktu</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
@@ -391,20 +422,29 @@ export function AssistantAttendance() {
                         <td className="px-4 py-3 text-sm text-gray-900">{index + 1}</td>
                         <td className="px-4 py-3 text-sm text-gray-900 font-medium">{student.nim}</td>
                         <td className="px-4 py-3 text-sm text-gray-900">{student.name}</td>
+                        <td className="px-4 py-3 text-center">
+                          <select
+                            value={student.status}
+                            onChange={(e) => handleUpdateRecord(student.id, { status: e.target.value as Student['status'] })}
+                            className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm focus:border-blue-500 focus:outline-none"
+                          >
+                            <option value="Hadir">Hadir</option>
+                            <option value="Izin">Izin</option>
+                            <option value="Sakit">Sakit</option>
+                            <option value="Alpa">Alpa</option>
+                          </select>
+                        </td>
                         <td className="px-4 py-3 text-sm text-gray-600 text-center">
-                          {student.time ? (
-                            <span className="flex items-center justify-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              {student.time}
-                            </span>
+                          {student.status === 'Hadir' ? (
+                            <input
+                              type="time"
+                              value={student.time || '08:00'}
+                              onChange={(e) => handleUpdateRecord(student.id, { time: e.target.value })}
+                              className="px-2 py-1 rounded border border-gray-200 text-sm focus:border-blue-500 focus:outline-none"
+                            />
                           ) : (
                             '-'
                           )}
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <span className={`inline-flex px-3 py-1 text-xs font-medium rounded-full ${getStatusBadge(student.status)}`}>
-                            {student.status}
-                          </span>
                         </td>
                       </tr>
                     ))}
@@ -421,9 +461,13 @@ export function AssistantAttendance() {
               >
                 Tutup
               </button>
-              <button className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2">
-                <Download className="w-4 h-4" />
-                Export Data
+              <button
+                onClick={handleSaveAttendance}
+                disabled={isSaving}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-60 transition-colors flex items-center gap-2"
+              >
+                <CheckCircle className="w-4 h-4" />
+                {isSaving ? 'Menyimpan...' : 'Simpan Presensi'}
               </button>
             </div>
           </div>

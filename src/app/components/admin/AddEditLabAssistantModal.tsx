@@ -21,12 +21,13 @@ interface LabAssistant {
 interface AddEditLabAssistantModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAddEdit: (assistant: LabAssistant) => void;
+  onAddEdit: (assistant: LabAssistant) => Promise<void> | void;
   assistant: LabAssistant | null;
   mode: 'add' | 'edit';
+  labs: string[];
 }
 
-export function AddEditLabAssistantModal({ isOpen, onClose, onAddEdit, assistant, mode }: AddEditLabAssistantModalProps) {
+export function AddEditLabAssistantModal({ isOpen, onClose, onAddEdit, assistant, mode, labs }: AddEditLabAssistantModalProps) {
   const [formData, setFormData] = useState<LabAssistant>({
     name: '',
     email: '',
@@ -43,6 +44,8 @@ export function AddEditLabAssistantModal({ isOpen, onClose, onAddEdit, assistant
     password: ''
   });
   const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState('');
 
   useEffect(() => {
     if (assistant && mode === 'edit') {
@@ -64,12 +67,22 @@ export function AddEditLabAssistantModal({ isOpen, onClose, onAddEdit, assistant
         password: ''
       });
     }
+    setIsSubmitting(false);
+    setFormError('');
   }, [assistant, mode, isOpen]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onAddEdit(formData);
-    onClose();
+    setIsSubmitting(true);
+    setFormError('');
+    try {
+      await onAddEdit(formData);
+      onClose();
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'Gagal menyimpan data asisten lab');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -90,6 +103,12 @@ export function AddEditLabAssistantModal({ isOpen, onClose, onAddEdit, assistant
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {formError && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {formError}
+            </div>
+          )}
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm text-gray-700 mb-2">
@@ -148,6 +167,66 @@ export function AddEditLabAssistantModal({ isOpen, onClose, onAddEdit, assistant
 
             <div>
               <label className="block text-sm text-gray-700 mb-2">
+                Lab <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                list="lab-options"
+                value={formData.lab}
+                onChange={(e) => setFormData({ ...formData, lab: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Contoh: Lab Pemrograman"
+              />
+              <datalist id="lab-options">
+                {labs.map((lab) => (
+                  <option key={lab} value={lab} />
+                ))}
+              </datalist>
+            </div>
+
+            <div>
+              <label className="block text-sm text-gray-700 mb-2">
+                Semester <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="number"
+                required
+                min="1"
+                value={formData.semester}
+                onChange={(e) => setFormData({ ...formData, semester: parseInt(e.target.value) || 1 })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm text-gray-700 mb-2">
+                No. HP
+              </label>
+              <input
+                type="text"
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="081234567890"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm text-gray-700 mb-2">
+                Supervisor
+              </label>
+              <input
+                type="text"
+                value={formData.supervisor}
+                onChange={(e) => setFormData({ ...formData, supervisor: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Nama dosen pembimbing"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm text-gray-700 mb-2">
                 Tanggal Bergabung <span className="text-red-500">*</span>
               </label>
               <input
@@ -181,7 +260,7 @@ export function AddEditLabAssistantModal({ isOpen, onClose, onAddEdit, assistant
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
-                  required
+                  required={mode === 'add'}
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -208,9 +287,10 @@ export function AddEditLabAssistantModal({ isOpen, onClose, onAddEdit, assistant
             </button>
             <button
               type="submit"
+              disabled={isSubmitting}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
-              {mode === 'add' ? 'Tambah' : 'Simpan Perubahan'}
+              {isSubmitting ? 'Menyimpan...' : mode === 'add' ? 'Tambah' : 'Simpan Perubahan'}
             </button>
           </div>
         </form>

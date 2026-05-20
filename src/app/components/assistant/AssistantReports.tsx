@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../../../services/api';
-import { reportWorkflow, getReportStatusClass, getReportStatusLabel } from '../../../services/reportWorkflow';
 import { Send } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -24,19 +23,12 @@ export function AssistantReports() {
   const [reports, setReports] = useState<ApiReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [, setVersion] = useState(0);
-
-  useEffect(() => {
-    const un = reportWorkflow.subscribe(() => setVersion((v) => v + 1));
-    return un;
-  }, []);
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
       setError('');
       try {
-        await reportWorkflow.loadFromApi();
         const payload = await api.get<any>('/assistant/reports');
         setReports(payload?.reports || []);
       } catch (err) {
@@ -63,14 +55,15 @@ export function AssistantReports() {
       className: items[0]?.class || '-',
       total: items.length,
       latestAt: items[0]?.submittedAt || '-',
-      workflowStatus: reportWorkflow.getStatus(items[0]?.id || 0),
+      workflowStatus: items[0]?.status || 'Draft',
       reportId: items[0]?.id || 0,
     }));
   }, [reports]);
 
   const onSend = async (reportId: number) => {
     try {
-      await reportWorkflow.submitByAssistant(reportId);
+      await api.put(`/assistant/reports/${reportId}/review`, { status: 'Menunggu Review', score: 0 });
+      setReports((items) => items.map((item) => (item.id === reportId ? { ...item, status: 'Menunggu Review' } : item)));
       toast.success('Laporan dikirim ke dosen');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Gagal kirim laporan');
@@ -109,14 +102,14 @@ export function AssistantReports() {
                   <td className="px-4 py-3">{row.className}</td>
                   <td className="px-4 py-3">{row.total}</td>
                   <td className="px-4 py-3">
-                    <span className={`px-2 py-1 rounded text-xs ${getReportStatusClass(row.workflowStatus)}`}>
-                      {getReportStatusLabel(row.workflowStatus)}
+                    <span className={`px-2 py-1 rounded text-xs ${getStatusClass(row.workflowStatus)}`}>
+                      {row.workflowStatus}
                     </span>
                   </td>
                   <td className="px-4 py-3">
                     <button
                       onClick={() => onSend(row.reportId)}
-                      disabled={row.workflowStatus === 'SUBMITTED' || row.workflowStatus === 'APPROVED'}
+                      disabled={row.workflowStatus === 'Menunggu Review' || row.workflowStatus === 'Disetujui'}
                       className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded disabled:opacity-50"
                     >
                       <Send className="w-4 h-4" /> Kirim
@@ -130,4 +123,11 @@ export function AssistantReports() {
       )}
     </div>
   );
+}
+
+function getStatusClass(status: string) {
+  if (status === 'Disetujui') return 'bg-green-100 text-green-700';
+  if (status === 'Ditolak') return 'bg-red-100 text-red-700';
+  if (status === 'Menunggu Review') return 'bg-blue-100 text-blue-700';
+  return 'bg-gray-100 text-gray-700';
 }

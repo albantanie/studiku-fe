@@ -13,7 +13,7 @@ interface Lecturer {
 interface AddEditLecturerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAddEdit: (lecturer: Lecturer) => void;
+  onAddEdit: (lecturer: Lecturer) => Promise<void> | void;
   lecturer?: Lecturer | null;
   mode: 'add' | 'edit';
 }
@@ -30,6 +30,7 @@ export function AddEditLecturerModal({ isOpen, onClose, onAddEdit, lecturer, mod
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showPassword, setShowPassword] = useState(false);
   const [courseInput, setCourseInput] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (lecturer && mode === 'edit') {
@@ -45,6 +46,7 @@ export function AddEditLecturerModal({ isOpen, onClose, onAddEdit, lecturer, mod
     }
     setErrors({});
     setCourseInput('');
+    setIsSubmitting(false);
   }, [lecturer, mode, isOpen]);
 
   if (!isOpen) return null;
@@ -74,12 +76,21 @@ export function AddEditLecturerModal({ isOpen, onClose, onAddEdit, lecturer, mod
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent | React.MouseEvent) => {
     e.preventDefault();
     
     if (validateForm()) {
-      onAddEdit(formData);
-      onClose();
+      setIsSubmitting(true);
+      try {
+        await onAddEdit(formData);
+        onClose();
+      } catch (err) {
+        setErrors({
+          form: err instanceof Error ? err.message : 'Gagal menyimpan data dosen'
+        });
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -141,6 +152,12 @@ export function AddEditLecturerModal({ isOpen, onClose, onAddEdit, lecturer, mod
         {/* Content */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6">
           <div className="space-y-5">
+            {errors.form && (
+              <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {errors.form}
+              </div>
+            )}
+
             {/* Personal Information */}
             <div>
               <h3 className="text-sm text-gray-900 mb-4 flex items-center gap-2">
@@ -300,9 +317,10 @@ export function AddEditLecturerModal({ isOpen, onClose, onAddEdit, lecturer, mod
           </button>
           <button
             onClick={handleSubmit}
+            disabled={isSubmitting}
             className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
-            {mode === 'add' ? 'Tambah Dosen' : 'Simpan Perubahan'}
+            {isSubmitting ? 'Menyimpan...' : mode === 'add' ? 'Tambah Dosen' : 'Simpan Perubahan'}
           </button>
         </div>
       </div>

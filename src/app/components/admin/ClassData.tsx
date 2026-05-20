@@ -31,6 +31,12 @@ interface ClassFormData {
   students: number[];
 }
 
+interface AcademicYear {
+  id: number;
+  name: string;
+  status: string;
+}
+
 export function ClassData() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
@@ -41,8 +47,11 @@ export function ClassData() {
   const [studentSearchQuery, setStudentSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [formError, setFormError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [classData, setClassData] = useState<Class[]>([]);
   const [allStudents, setAllStudents] = useState<Student[]>([]);
+  const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
 
   const [formData, setFormData] = useState<ClassFormData>({
     name: '',
@@ -57,9 +66,10 @@ export function ClassData() {
       setIsLoading(true);
       setError('');
       try {
-        const [classes, students] = await Promise.all([
+        const [classes, students, years] = await Promise.all([
           api.get<any[]>('/admin/classes'),
           api.get<any[]>('/admin/students'),
+          api.get<AcademicYear[]>('/admin/academic-years'),
         ]);
         setClassData((classes || []).map((cls) => ({
           id: cls.id,
@@ -80,6 +90,7 @@ export function ClassData() {
           email: s.email || '-',
           status: s.status || 'Aktif',
         })));
+        setAcademicYears(years || []);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Gagal memuat data kelas');
       } finally {
@@ -99,7 +110,7 @@ export function ClassData() {
     
     return matchesSearch && matchesAcademicYear;
   });
-  const academicYears = Array.from(new Set(classData.map((c) => c.academicYear).filter(Boolean)));
+  const academicYearOptions = academicYears.map((year) => year.name).filter(Boolean);
 
   const getCapacityColor = (current: number, max: number) => {
     const percentage = (current / max) * 100;
@@ -109,14 +120,19 @@ export function ClassData() {
   };
 
   const handleAddClass = () => {
+    const defaultAcademicYear =
+      academicYears.find((year) => year.status === 'Aktif')?.name ||
+      academicYears[0]?.name ||
+      '';
     setEditingClass(null);
     setFormData({
       name: '',
       code: '',
-      academicYear: '',
+      academicYear: defaultAcademicYear,
       capacity: '',
       students: []
     });
+    setFormError('');
     setShowAddModal(true);
   };
 
@@ -129,6 +145,7 @@ export function ClassData() {
       capacity: cls.capacity.toString(),
       students: cls.students
     });
+    setFormError('');
     setShowAddModal(true);
   };
 
@@ -152,6 +169,18 @@ export function ClassData() {
 
   const handleSubmitClass = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError('');
+
+    if (!formData.academicYear) {
+      setFormError('Tahun akademik wajib dipilih.');
+      return;
+    }
+
+    const capacity = parseInt(formData.capacity, 10);
+    if (!Number.isFinite(capacity) || capacity < 1) {
+      setFormError('Kapasitas harus lebih dari 0.');
+      return;
+    }
 
     const payload = {
       name: formData.name,
@@ -161,29 +190,36 @@ export function ClassData() {
       schedule: editingClass?.schedule || '',
       room: editingClass?.room || '',
       totalStudents: formData.students.length,
-      capacity: parseInt(formData.capacity),
+      capacity,
       students: formData.students,
     };
 
-    if (editingClass) {
-      await api.put(`/admin/classes/${editingClass.id}`, payload);
-    } else {
-      await api.post('/admin/classes', payload);
+    setIsSubmitting(true);
+    try {
+      if (editingClass) {
+        await api.put(`/admin/classes/${editingClass.id}`, payload);
+      } else {
+        await api.post('/admin/classes', payload);
+      }
+      const classes = await api.get<any[]>('/admin/classes');
+      setClassData((classes || []).map((cls) => ({
+        id: cls.id,
+        code: cls.code || '-',
+        name: cls.name || '-',
+        academicYear: cls.academicYear || '-',
+        assistant: cls.assistant || '-',
+        schedule: cls.schedule || '-',
+        room: cls.room || '-',
+        totalStudents: cls.totalStudents || 0,
+        capacity: cls.capacity || 0,
+        students: cls.students || [],
+      })));
+      setShowAddModal(false);
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'Gagal menyimpan kelas');
+    } finally {
+      setIsSubmitting(false);
     }
-    const classes = await api.get<any[]>('/admin/classes');
-    setClassData((classes || []).map((cls) => ({
-      id: cls.id,
-      code: cls.code || '-',
-      name: cls.name || '-',
-      academicYear: cls.academicYear || '-',
-      assistant: cls.assistant || '-',
-      schedule: cls.schedule || '-',
-      room: cls.room || '-',
-      totalStudents: cls.totalStudents || 0,
-      capacity: cls.capacity || 0,
-      students: cls.students || [],
-    })));
-    setShowAddModal(false);
   };
 
   const handleStudentToggle = (studentId: number) => {
@@ -363,7 +399,7 @@ export function ClassData() {
               className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="all">Semua Tahun Akademik</option>
-              {academicYears.map((year) => (
+              {academicYearOptions.map((year) => (
                 <option key={year} value={year}>{year}</option>
               ))}
             </select>
@@ -456,7 +492,10 @@ export function ClassData() {
                 {editingClass ? 'Edit Kelas' : 'Tambah Kelas Baru'}
               </h2>
               <button
-                onClick={() => setShowAddModal(false)}
+                onClick={() => {
+                  setFormError('');
+                  setShowAddModal(false);
+                }}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
               >
                 <X className="w-6 h-6" />
@@ -464,6 +503,11 @@ export function ClassData() {
             </div>
 
             <form onSubmit={handleSubmitClass} className="p-6 space-y-4">
+              {formError && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {formError}
+                </div>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -519,10 +563,15 @@ export function ClassData() {
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">Pilih Tahun Akademik</option>
-                    {academicYears.map((year) => (
+                    {academicYearOptions.map((year) => (
                       <option key={year} value={year}>{year}</option>
                     ))}
                   </select>
+                  {academicYearOptions.length === 0 && (
+                    <p className="text-xs text-red-500 mt-1">
+                      Belum ada tahun akademik. Tambahkan dari menu Tahun Akademik terlebih dahulu.
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -578,16 +627,20 @@ export function ClassData() {
               <div className="flex justify-end gap-3 pt-4">
                 <button
                   type="button"
-                  onClick={() => setShowAddModal(false)}
+                  onClick={() => {
+                    setFormError('');
+                    setShowAddModal(false);
+                  }}
                   className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  disabled={isSubmitting || academicYearOptions.length === 0}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {editingClass ? 'Simpan Perubahan' : 'Tambah Kelas'}
+                  {isSubmitting ? 'Menyimpan...' : editingClass ? 'Simpan Perubahan' : 'Tambah Kelas'}
                 </button>
               </div>
             </form>

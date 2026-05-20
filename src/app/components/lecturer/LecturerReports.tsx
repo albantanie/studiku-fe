@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../../../services/api';
-import { reportWorkflow, getReportStatusClass, getReportStatusLabel } from '../../../services/reportWorkflow';
 import { CheckCircle2, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -10,25 +9,19 @@ type ApiReport = {
   courseName: string;
   class: string;
   submittedAt: string;
+  status: string;
 };
 
 export function LecturerReports() {
   const [reports, setReports] = useState<ApiReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [, setVersion] = useState(0);
-
-  useEffect(() => {
-    const un = reportWorkflow.subscribe(() => setVersion((v) => v + 1));
-    return un;
-  }, []);
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
       setError('');
       try {
-        await reportWorkflow.loadFromApi();
         const payload = await api.get<any>('/assistant/reports');
         setReports(payload?.reports || []);
       } catch (err) {
@@ -43,6 +36,7 @@ export function LecturerReports() {
   const grouped = useMemo(() => {
     const m = new Map<string, ApiReport>();
     for (const r of reports) {
+      if (r.status === 'Draft') continue;
       const key = `${r.courseCode}-${r.class}`;
       if (!m.has(key)) m.set(key, r);
     }
@@ -51,7 +45,8 @@ export function LecturerReports() {
 
   const onApprove = async (id: number) => {
     try {
-      await reportWorkflow.approveByLecturer(id);
+      await api.put(`/lecturer/reports/${id}/approve`, {});
+      setReports((items) => items.map((item) => (item.id === id ? { ...item, status: 'Disetujui' } : item)));
       toast.success('Laporan disetujui');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Gagal approve');
@@ -60,7 +55,8 @@ export function LecturerReports() {
 
   const onReject = async (id: number) => {
     try {
-      await reportWorkflow.rejectByLecturer(id);
+      await api.put(`/lecturer/reports/${id}/reject`, {});
+      setReports((items) => items.map((item) => (item.id === id ? { ...item, status: 'Ditolak' } : item)));
       toast.success('Laporan ditolak');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Gagal reject');
@@ -90,16 +86,16 @@ export function LecturerReports() {
             </thead>
             <tbody className="divide-y divide-gray-200">
               {grouped.map((r) => {
-                const st = reportWorkflow.getStatus(r.id);
+                const st = r.status;
                 return (
                   <tr key={r.id}>
                     <td className="px-4 py-3">{r.courseCode} - {r.courseName}</td>
                     <td className="px-4 py-3">{r.class}</td>
-                    <td className="px-4 py-3"><span className={`px-2 py-1 rounded text-xs ${getReportStatusClass(st)}`}>{getReportStatusLabel(st)}</span></td>
+                    <td className="px-4 py-3"><span className={`px-2 py-1 rounded text-xs ${getStatusClass(st)}`}>{st}</span></td>
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
-                        <button onClick={() => onApprove(r.id)} disabled={st !== 'SUBMITTED'} className="inline-flex items-center gap-2 px-3 py-1.5 bg-green-600 text-white rounded disabled:opacity-50"><CheckCircle2 className="w-4 h-4" />Approve</button>
-                        <button onClick={() => onReject(r.id)} disabled={st !== 'SUBMITTED'} className="inline-flex items-center gap-2 px-3 py-1.5 bg-red-600 text-white rounded disabled:opacity-50"><XCircle className="w-4 h-4" />Reject</button>
+                        <button onClick={() => onApprove(r.id)} disabled={st !== 'Menunggu Review'} className="inline-flex items-center gap-2 px-3 py-1.5 bg-green-600 text-white rounded disabled:opacity-50"><CheckCircle2 className="w-4 h-4" />Approve</button>
+                        <button onClick={() => onReject(r.id)} disabled={st !== 'Menunggu Review'} className="inline-flex items-center gap-2 px-3 py-1.5 bg-red-600 text-white rounded disabled:opacity-50"><XCircle className="w-4 h-4" />Reject</button>
                       </div>
                     </td>
                   </tr>
@@ -111,4 +107,11 @@ export function LecturerReports() {
       )}
     </div>
   );
+}
+
+function getStatusClass(status: string) {
+  if (status === 'Disetujui') return 'bg-green-100 text-green-700';
+  if (status === 'Ditolak') return 'bg-red-100 text-red-700';
+  if (status === 'Menunggu Review') return 'bg-blue-100 text-blue-700';
+  return 'bg-gray-100 text-gray-700';
 }

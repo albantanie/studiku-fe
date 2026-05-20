@@ -31,7 +31,7 @@ export const reportWorkflow = {
   loadFromApi: async () => {
     try {
       const data = await api.get<ReportWorkflowItem[]>('/reports/workflow');
-      if (Array.isArray(data) && data.length > 0) {
+      if (Array.isArray(data)) {
         workflowCache = data;
         emitChange();
       }

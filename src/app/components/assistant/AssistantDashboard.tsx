@@ -2,7 +2,11 @@ import { useEffect, useState } from 'react';
 import { Beaker, Users, CheckSquare, Clock, Calendar, AlertCircle } from 'lucide-react';
 import { api } from '../../../services/api';
 
-export function AssistantDashboard() {
+type AssistantDashboardProps = {
+  userName?: string;
+};
+
+export function AssistantDashboard({ userName }: AssistantDashboardProps) {
   const [practicalSessions, setPracticalSessions] = useState<any[]>([]);
   const [pendingTasks, setPendingTasks] = useState<any[]>([]);
   const [upcomingPracticals, setUpcomingPracticals] = useState<any[]>([]);
@@ -34,7 +38,7 @@ export function AssistantDashboard() {
       {/* Header */}
       <div>
         <h1 className="text-gray-900">Dashboard Asisten Laboratorium</h1>
-        <p className="text-gray-600 mt-1">Selamat datang, Andi Pratama - Asisten Lab Teknik Informatika</p>
+        <p className="text-gray-600 mt-1">Selamat datang{userName ? `, ${userName}` : ''}</p>
       </div>
       {isLoading && <div className="text-sm text-gray-600">Memuat dashboard aslab...</div>}
       {error && <div className="text-sm text-red-600">{error}</div>}
@@ -117,7 +121,7 @@ export function AssistantDashboard() {
                           </span>
                         </div>
                         <h3 className="text-gray-900 font-semibold">{session.course}</h3>
-                        <p className="text-sm text-gray-600 mt-1">{session.topic}</p>
+                        {session.topic && <p className="text-sm text-gray-600 mt-1">{session.topic}</p>}
                       </div>
                       <div className="text-right">
                         <p className="text-sm text-gray-500 mb-1">Kehadiran</p>
@@ -162,10 +166,17 @@ export function AssistantDashboard() {
                         </span>
                       </div>
                       <p className="text-sm text-gray-600 mb-1">{practical.time} • {practical.lab}</p>
-                      <p className="text-sm text-gray-700"><span className="font-medium">Topik:</span> {practical.topic}</p>
+                      {practical.topic && (
+                        <p className="text-sm text-gray-700"><span className="font-medium">Topik:</span> {practical.topic}</p>
+                      )}
                     </div>
                   </div>
                 ))}
+                {!isLoading && !error && upcomingPracticals.length === 0 && (
+                  <div className="p-4 border border-dashed border-gray-300 rounded-lg text-sm text-gray-500">
+                    Belum ada jadwal praktikum minggu ini.
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -180,6 +191,11 @@ export function AssistantDashboard() {
             </div>
             <div className="p-6">
               <div className="space-y-4">
+                {!isLoading && !error && pendingTasks.length === 0 && (
+                  <div className="p-4 border border-dashed border-gray-300 rounded-lg text-sm text-gray-500">
+                    Belum ada tugas pending.
+                  </div>
+                )}
                 {pendingTasks.map((task) => (
                   <div key={task.id} className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                     <div className="flex items-start gap-2 mb-2">
@@ -207,6 +223,11 @@ export function AssistantDashboard() {
             </div>
             <div className="p-6">
               <div className="space-y-4">
+                {!isLoading && !error && recentActivities.length === 0 && (
+                  <div className="p-4 border border-dashed border-gray-300 rounded-lg text-sm text-gray-500">
+                    Belum ada aktivitas terkini.
+                  </div>
+                )}
                 {recentActivities.map((activity) => (
                   <div key={activity.id} className="flex items-start gap-3">
                     <div className={`w-2 h-2 mt-2 rounded-full flex-shrink-0 ${

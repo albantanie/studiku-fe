@@ -2,7 +2,11 @@ import { useEffect, useState } from 'react';
 import { BookOpen, Users, Award, Calendar, TrendingUp, Clock } from 'lucide-react';
 import { api } from '../../../services/api';
 
-export function LecturerDashboard() {
+type LecturerDashboardProps = {
+  userName?: string;
+};
+
+export function LecturerDashboard({ userName }: LecturerDashboardProps) {
   const [courses, setCourses] = useState<any[]>([]);
   const [upcomingClasses, setUpcomingClasses] = useState<any[]>([]);
   const [recentActivities, setRecentActivities] = useState<any[]>([]);
@@ -32,7 +36,7 @@ export function LecturerDashboard() {
       {/* Header */}
       <div>
         <h1 className="text-gray-900">Dashboard Dosen</h1>
-        <p className="text-gray-600 mt-1">Selamat datang kembali, Prof. Dr. Ahmad Wijaya</p>
+        <p className="text-gray-600 mt-1">Selamat datang kembali{userName ? `, ${userName}` : ''}</p>
       </div>
       {isLoading && <div className="text-sm text-gray-600">Memuat dashboard dosen...</div>}
       {error && <div className="text-sm text-red-600">{error}</div>}
@@ -70,7 +74,7 @@ export function LecturerDashboard() {
             <div>
               <p className="text-sm text-gray-600 mb-1">Rata-rata Nilai</p>
               <p className="text-3xl font-bold text-gray-900">
-                {courses.length > 0 ? (courses.reduce((sum, course) => sum + course.averageGrade, 0) / courses.length).toFixed(1) : '0.0'}
+                {courses.length > 0 ? (courses.reduce((sum, course) => sum + (Number(course.averageGrade) || 0), 0) / courses.length).toFixed(1) : '0.0'}
               </p>
             </div>
             <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
@@ -118,10 +122,12 @@ export function LecturerDashboard() {
                         </div>
                         <h3 className="text-gray-900 font-semibold">{course.name}</h3>
                       </div>
-                      <div className="flex items-center gap-1 text-green-600">
-                        <TrendingUp className="w-4 h-4" />
-                        <span className="text-sm font-medium">{course.averageGrade}</span>
-                      </div>
+                      {Number(course.averageGrade) > 0 && (
+                        <div className="flex items-center gap-1 text-green-600">
+                          <TrendingUp className="w-4 h-4" />
+                          <span className="text-sm font-medium">{course.averageGrade}</span>
+                        </div>
+                      )}
                     </div>
                     <div className="grid grid-cols-3 gap-4 text-sm">
                       <div>
@@ -171,10 +177,17 @@ export function LecturerDashboard() {
                         </span>
                       </div>
                       <p className="text-sm text-gray-600 mb-1">{classItem.time} • {classItem.room}</p>
-                      <p className="text-sm text-gray-700"><span className="font-medium">Topik:</span> {classItem.topic}</p>
+                      {classItem.topic && (
+                        <p className="text-sm text-gray-700"><span className="font-medium">Topik:</span> {classItem.topic}</p>
+                      )}
                     </div>
                   </div>
                 ))}
+                {!isLoading && !error && upcomingClasses.length === 0 && (
+                  <div className="p-4 border border-dashed border-gray-300 rounded-lg text-sm text-gray-500">
+                    Belum ada jadwal kelas minggu ini.
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -187,6 +200,11 @@ export function LecturerDashboard() {
           </div>
           <div className="p-6">
             <div className="space-y-4">
+              {!isLoading && !error && recentActivities.length === 0 && (
+                <div className="p-4 border border-dashed border-gray-300 rounded-lg text-sm text-gray-500">
+                  Belum ada aktivitas terkini.
+                </div>
+              )}
               {recentActivities.map((activity) => (
                 <div key={activity.id} className="flex items-start gap-3">
                   <div className={`w-2 h-2 mt-2 rounded-full flex-shrink-0 ${

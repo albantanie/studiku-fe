@@ -89,21 +89,21 @@ export function LecturerCourses() {
       setIsLoading(true);
       setError('');
       try {
-        const data = await api.get<any[]>('/admin/courses');
+        const data = await api.get<any[]>('/lecturer/courses');
         setCourses((data || []).map((c) => ({
           id: c.id,
-          code: c.classCode || c.code || '-',
+          code: c.code || c.classCode || '-',
           name: c.name,
-          class: c.classCode || '-',
-          semester: 'Ganjil',
+          class: c.class || c.classCode || '-',
+          semester: c.semester || '-',
           academicYear: c.academicYear || '-',
           students: c.students || 0,
-          schedule: `${c.day || '-'}, ${c.startTime || '-'} - ${c.endTime || '-'}`,
+          schedule: c.schedule || '-',
           room: c.room || '-',
-          sks: c.credits || 0,
-          description: c.name || '',
-          materials: 0,
-          assignments: 0,
+          sks: c.sks || c.credits || 0,
+          description: c.description || '',
+          materials: c.materials || 0,
+          assignments: c.assignments || 0,
         })));
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Gagal memuat kursus dosen');

@@ -51,11 +51,13 @@ export function AdminDashboard() {
               <div>
                 <p className="text-sm text-gray-600 mb-1">{stat.label}</p>
                 <p className="text-gray-900 mb-2">{stat.value}</p>
-                <div className="flex items-center gap-1">
-                  <TrendingUp className="w-4 h-4 text-green-600" />
-                    <span className="text-sm text-green-600">{stat.change || '-'}</span>
-                  <span className="text-xs text-gray-500">vs bulan lalu</span>
-                </div>
+                {stat.change && (
+                  <div className="flex items-center gap-1">
+                    <TrendingUp className="w-4 h-4 text-green-600" />
+                    <span className="text-sm text-green-600">{stat.change}</span>
+                    <span className="text-xs text-gray-500">vs bulan lalu</span>
+                  </div>
+                )}
               </div>
               <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center">
                 <Users className="w-6 h-6 text-blue-600" />
@@ -73,6 +75,11 @@ export function AdminDashboard() {
             <button className="text-sm text-blue-600 hover:text-blue-700">Lihat Semua</button>
           </div>
           <div className="space-y-4">
+            {recentActivities.length === 0 && !isLoading && !error && (
+              <div className="p-4 border border-dashed border-gray-300 rounded-lg text-sm text-gray-500">
+                Belum ada aktivitas terbaru.
+              </div>
+            )}
             {recentActivities.map((activity, index) => (
               <div key={index} className="flex items-start gap-3 pb-4 border-b border-gray-100 last:border-0 last:pb-0">
                 <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -98,6 +105,11 @@ export function AdminDashboard() {
             <button className="text-sm text-blue-600 hover:text-blue-700">Lihat Semua</button>
           </div>
           <div className="space-y-4">
+            {topCourses.length === 0 && !isLoading && !error && (
+              <div className="p-4 border border-dashed border-gray-300 rounded-lg text-sm text-gray-500">
+                Belum ada data kursus.
+              </div>
+            )}
             {topCourses.map((course, index) => (
               <div key={index} className="pb-4 border-b border-gray-100 last:border-0 last:pb-0">
                 <div className="flex items-center justify-between mb-2">

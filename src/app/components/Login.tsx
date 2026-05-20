@@ -1,8 +1,16 @@
 import { useState } from 'react';
 import { GraduationCap, Mail, Lock, Eye, EyeOff, BookOpen, Award, Users } from 'lucide-react';
+import { api } from '../../services/api';
+
+export type AuthUser = {
+  id: number;
+  name: string;
+  email: string;
+  role: 'student' | 'admin' | 'lecturer' | 'assistant';
+};
 
 interface LoginProps {
-  onLogin: (email: string, role: 'student' | 'admin' | 'lecturer' | 'assistant') => void;
+  onLogin: (user: AuthUser) => void;
 }
 
 export function Login({ onLogin }: LoginProps) {
@@ -10,26 +18,21 @@ export function Login({ onLogin }: LoginProps) {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
-    // Simulate login process
-    setTimeout(() => {
+    setError('');
+
+    try {
+      const user = await api.post<AuthUser>('/auth/login', { email, password });
+      onLogin(user);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Login gagal');
+    } finally {
       setIsLoading(false);
-      
-      // Check email and assign role
-      if (email === 'admin@app.com') {
-        onLogin(email, 'admin');
-      } else if (email === 'dosen@app.com') {
-        onLogin(email, 'lecturer');
-      } else if (email === 'asslab@app.com') {
-        onLogin(email, 'assistant');
-      } else {
-        onLogin(email, 'student');
-      }
-    }, 1000);
+    }
   };
 
   return (
@@ -117,6 +120,12 @@ export function Login({ onLogin }: LoginProps) {
             </div>
 
             {/* Login Button */}
+            {error && (
+              <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {error}
+              </div>
+            )}
+
             <button
               type="submit"
               disabled={isLoading}

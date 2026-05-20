@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../../../services/api';
-import { reportWorkflow, getReportStatusClass, getReportStatusLabel } from '../../../services/reportWorkflow';
 import { Download } from 'lucide-react';
 
 type ApiReport = {
@@ -19,19 +18,12 @@ export function AdminReports() {
   const [reports, setReports] = useState<ApiReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [, setVersion] = useState(0);
-
-  useEffect(() => {
-    const un = reportWorkflow.subscribe(() => setVersion((v) => v + 1));
-    return un;
-  }, []);
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
       setError('');
       try {
-        await reportWorkflow.loadFromApi();
         const payload = await api.get<any>('/assistant/reports');
         setReports(payload?.reports || []);
       } catch (err) {
@@ -43,7 +35,7 @@ export function AdminReports() {
     load();
   }, []);
 
-  const approved = useMemo(() => reports.filter((r) => reportWorkflow.getStatus(r.id) === 'APPROVED'), [reports]);
+  const approved = useMemo(() => reports.filter((r) => r.status === 'Disetujui'), [reports]);
 
   const onExport = () => {
     const rows = ['courseCode,courseName,class,nim,name,submittedAt,score'];
@@ -92,7 +84,7 @@ export function AdminReports() {
                   <td className="px-4 py-3">{r.class}</td>
                   <td className="px-4 py-3">{r.nim} - {r.name}</td>
                   <td className="px-4 py-3">{r.score ?? '-'}</td>
-                  <td className="px-4 py-3"><span className={`px-2 py-1 rounded text-xs ${getReportStatusClass('APPROVED')}`}>{getReportStatusLabel('APPROVED')}</span></td>
+                  <td className="px-4 py-3"><span className="px-2 py-1 rounded text-xs bg-green-100 text-green-700">Disetujui</span></td>
                 </tr>
               ))}
             </tbody>
